@@ -26,6 +26,7 @@ const GameScreen = () => {
   }>({});
   const [nextLineId, setNextLineId] = useState(1);
   const [focusedInput, setFocusedInput] = useState<string | null>(null);
+  const [showMenu, setShowMenu] = useState(false);
 
   useEffect(() => {
     loadUsers();
@@ -81,31 +82,39 @@ const GameScreen = () => {
   };
 
   const updateScoreInLine = (lineId: string, userId: string, value: string) => {
-    const numValue = value === '' ? null : parseFloat(value) || 0;
-
     setScoreLines(prev => {
       const updatedLines = {
         ...prev,
         [lineId]: {
           ...prev[lineId],
-          [userId]: numValue,
+          [userId]: value, // store raw string
         },
       };
 
-      // Check if we should add a new line after updating
+      // Try parsing into number only if it's a valid float
+      const numValue = parseFloat(value);
+      const isValidNumber = !isNaN(numValue);
+
+      if (isValidNumber) {
+        updatedLines[lineId][userId] = numValue;
+      }
+
+      // ---- auto-add new line logic stays the same ----
       const updatedLine = updatedLines[lineId];
       const allPlayersHaveScores = selectedUsers.every(
         user =>
           updatedLine[user.id] !== null &&
           updatedLine[user.id] !== undefined &&
-          updatedLine[user.id] !== 0,
+          updatedLine[user.id] !== '',
       );
 
-      // Only add a new line if all players have scores AND there's no empty line already
       if (allPlayersHaveScores) {
         const hasEmptyLine = Object.values(updatedLines).some(line =>
           selectedUsers.some(
-            user => line[user.id] === null || line[user.id] === undefined,
+            user =>
+              line[user.id] === null ||
+              line[user.id] === undefined ||
+              line[user.id] === '',
           ),
         );
 
@@ -123,25 +132,31 @@ const GameScreen = () => {
       return updatedLines;
     });
 
-    // Update total scores
-    const newTotalScores: { [userId: string]: number } = {};
-    selectedUsers.forEach(user => {
-      newTotalScores[user.id] = Object.values(scoreLines).reduce(
-        (sum, line) => {
-          const lineValue = line[user.id];
-          if (lineValue === null || lineValue === undefined) return sum;
-          return sum + lineValue;
-        },
-        0,
-      );
+    // Update total scores with the new value
+    setScores(prev => {
+      const newTotalScores = { ...prev };
+
+      // Recalculate total for the current user
+      let userTotal = 0;
+      Object.values(scoreLines).forEach(line => {
+        const lineValue = line[userId];
+        if (
+          lineValue !== null &&
+          lineValue !== undefined &&
+          typeof lineValue === 'number'
+        ) {
+          userTotal += lineValue;
+        }
+      });
+
+      // Add the current update
+      const oldValue = scoreLines[lineId][userId] || 0;
+      const numValue = parseFloat(value);
+      const currentValue = isNaN(numValue) ? 0 : numValue;
+      newTotalScores[userId] = userTotal - oldValue + currentValue;
+
+      return newTotalScores;
     });
-
-    // Add the current update
-    const oldValue = scoreLines[lineId][userId] || 0;
-    newTotalScores[userId] =
-      newTotalScores[userId] - oldValue + (numValue || 0);
-
-    setScores(newTotalScores);
   };
 
   const deleteScoreLine = (lineId: string) => {
@@ -309,8 +324,11 @@ const GameScreen = () => {
         <Text style={styles.gameTitleDisplay}>
           {gameTitle || 'Partie sans titre'}
         </Text>
-        <TouchableOpacity style={styles.resetButton} onPress={resetScores}>
-          <Text style={styles.resetButtonText}>Réinitialiser</Text>
+        <TouchableOpacity
+          style={styles.menuButton}
+          onPress={() => setShowMenu(true)}
+        >
+          <Text style={styles.menuButtonText}>⋮</Text>
         </TouchableOpacity>
       </View>
 
@@ -321,7 +339,6 @@ const GameScreen = () => {
 
         <ScrollView
           style={styles.scoreTable}
-          showsVerticalScrollIndicator={true}
           horizontal={true}
           showsHorizontalScrollIndicator={true}
         >
@@ -405,21 +422,6 @@ const GameScreen = () => {
         </View>
       </View>
 
-      <View style={styles.actionButtons}>
-        <TouchableOpacity
-          style={styles.changePlayersButton}
-          onPress={() => setShowUserSelection(true)}
-        >
-          <Text style={styles.changePlayersButtonText}>
-            Changer les Joueurs
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.saveGameButton} onPress={saveGame}>
-          <Text style={styles.saveGameButtonText}>Enregistrer la Partie</Text>
-        </TouchableOpacity>
-      </View>
-
       <Modal
         visible={showUserSelection}
         animationType="slide"
@@ -470,6 +472,68 @@ const GameScreen = () => {
             </View>
           </View>
         </View>
+      </Modal>
+
+      {/* 3-Dot Menu Modal */}
+      <Modal visible={showMenu} animationType="fade" transparent={true}>
+        <TouchableOpacity
+          style={styles.menuOverlay}
+          activeOpacity={1}
+          onPress={() => setShowMenu(false)}
+        >
+          <View style={styles.menuContainer}>
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => {
+                setShowMenu(false);
+                setShowUserSelection(true);
+              }}
+            >
+              <Text style={styles.menuItemText}>Changer les joueurs</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => {
+                setShowMenu(false);
+                resetScores();
+              }}
+            >
+              <Text style={styles.menuItemText}>Réinitialiser</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => {
+                setShowMenu(false);
+                saveGame();
+              }}
+            >
+              <Text style={styles.menuItemText}>Enregistrer la partie</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.menuItem, styles.menuItemDanger]}
+              onPress={() => {
+                setShowMenu(false);
+                // Add end game logic here
+                Alert.alert(
+                  'Terminer la partie',
+                  'Êtes-vous sûr de vouloir terminer cette partie ?',
+                  [
+                    { text: 'Annuler', style: 'cancel' },
+                    {
+                      text: 'Terminer',
+                      style: 'destructive',
+                      onPress: () => navigation.goBack(),
+                    },
+                  ],
+                );
+              }}
+            >
+              <Text style={[styles.menuItemText, styles.menuItemTextDanger]}>
+                Terminer la partie
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
       </Modal>
     </View>
   );
@@ -564,6 +628,26 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     marginRight: 12,
   },
+  headerButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  menuButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#2a2a2a',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 12,
+    borderWidth: 1,
+    borderColor: '#4a4a4a',
+  },
+  menuButtonText: {
+    color: '#ffffff',
+    fontSize: 20,
+    fontWeight: 'bold',
+  },
   gameTitleContainer: {
     padding: 20,
     paddingBottom: 10,
@@ -606,22 +690,14 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
   },
-  resetButton: {
-    backgroundColor: '#ef4444',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 8,
-  },
-  resetButtonText: {
-    color: '#ffffff',
-    fontWeight: '600',
-  },
   scoreTableContainer: {
+    marginTop: -20,
     flex: 1,
-    padding: 20,
+    padding: 10,
+    paddingTop: 5,
   },
   tableHeaderContainer: {
-    marginBottom: 16,
+    marginBottom: 8,
   },
   leaderboardTitle: {
     fontSize: 20,
@@ -693,17 +769,17 @@ const styles = StyleSheet.create({
   },
   scoreInputCell: {
     width: 100,
-    height: 40,
     backgroundColor: '#2a2a2a',
     borderRadius: 8,
     borderWidth: 2,
     borderColor: '#4a4a4a',
     textAlign: 'center',
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '600',
     color: '#ffffff',
     marginHorizontal: 4,
     paddingHorizontal: 8,
+    overflow: 'hidden',
   },
   scoreInputCellFocused: {
     borderColor: '#8b5cf6',
@@ -726,8 +802,8 @@ const styles = StyleSheet.create({
   totalScoresContainer: {
     backgroundColor: '#2a2a2a',
     borderRadius: 12,
-    padding: 16,
-    margin: 20,
+    padding: 10,
+    margin: 14,
     marginTop: 0,
     borderWidth: 1,
     borderColor: '#3a3a3a',
@@ -764,39 +840,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     color: '#8b5cf6',
-  },
-  actionButtons: {
-    flexDirection: 'row',
-    padding: 20,
-    paddingTop: 0,
-  },
-  changePlayersButton: {
-    flex: 1,
-    backgroundColor: 'transparent',
-    borderWidth: 2,
-    borderColor: '#8b5cf6',
-    borderRadius: 8,
-    padding: 16,
-    alignItems: 'center',
-    marginRight: 8,
-  },
-  changePlayersButtonText: {
-    color: '#8b5cf6',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  saveGameButton: {
-    flex: 1,
-    backgroundColor: '#10b981',
-    borderRadius: 8,
-    padding: 16,
-    alignItems: 'center',
-    marginLeft: 8,
-  },
-  saveGameButtonText: {
-    color: '#ffffff',
-    fontSize: 16,
-    fontWeight: '600',
   },
   modalContainer: {
     flex: 1,
@@ -867,6 +910,43 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 16,
     fontWeight: '600',
+  },
+  // 3-Dot Menu Styles
+  menuOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-start',
+    alignItems: 'flex-end',
+    paddingTop: 60,
+    paddingRight: 20,
+  },
+  menuContainer: {
+    backgroundColor: '#2a2a2a',
+    borderRadius: 12,
+    padding: 8,
+    minWidth: 200,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  menuItem: {
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    marginVertical: 2,
+  },
+  menuItemDanger: {
+    backgroundColor: '#4a1a1a',
+  },
+  menuItemText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  menuItemTextDanger: {
+    color: '#ff6b6b',
   },
 });
 
