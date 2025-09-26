@@ -1,97 +1,94 @@
-This is a new [**React Native**](https://reactnative.dev) project, bootstrapped using [`@react-native-community/cli`](https://github.com/react-native-community/cli).
+# Point Counter App
 
-# Getting Started
+A React Native mobile application for tracking points in games with multiple players.
 
-> **Note**: Make sure you have completed the [Set Up Your Environment](https://reactnative.dev/docs/set-up-your-environment) guide before proceeding.
+## Features
 
-## Step 1: Start Metro
+### User Management
 
-First, you will need to run **Metro**, the JavaScript build tool for React Native.
+- ✅ Add new users with custom names and colors
+- ✅ Edit existing user information
+- ✅ Delete users from the system
+- ✅ Persistent storage using AsyncStorage
 
-To start the Metro dev server, run the following command from the root of your React Native project:
+### Game Management
 
-```sh
-# Using npm
-npm start
+- ✅ Create new games with selected players
+- ✅ Real-time point tracking with +/- buttons
+- ✅ Live leaderboard with rankings
+- ✅ Save game results
+- ✅ Reset scores functionality
 
-# OR using Yarn
-yarn start
+### UI/UX Features
+
+- 🎨 Beautiful purple and black color palette
+- 📱 Modern, intuitive interface
+- 🎯 Easy-to-use controls
+- 📊 Clear visual feedback
+- 🔄 Smooth navigation between screens
+
+## Screens
+
+1. **Home Screen**: Overview and quick access to main features
+2. **User Management**: Add, edit, and delete players
+3. **Add User**: Create new players with color selection
+4. **Edit User**: Modify existing player information
+5. **Game Screen**: Track points and manage active games
+
+## Installation
+
+1. Install dependencies:
+
+```bash
+npm install
 ```
 
-## Step 2: Build and run your app
+2. For Android:
 
-With Metro running, open a new terminal window/pane from the root of your React Native project, and use one of the following commands to build and run your Android or iOS app:
-
-### Android
-
-```sh
-# Using npm
-npm run android
-
-# OR using Yarn
-yarn android
+```bash
+npx react-native run-android
 ```
 
-### iOS
+3. For iOS:
 
-For iOS, remember to install CocoaPods dependencies (this only needs to be run on first clone or after updating native deps).
-
-The first time you create a new project, run the Ruby bundler to install CocoaPods itself:
-
-```sh
-bundle install
+```bash
+npx react-native run-ios
 ```
 
-Then, and every time you update your native dependencies, run:
+## Dependencies
 
-```sh
-bundle exec pod install
-```
+- React Native
+- React Navigation
+- AsyncStorage
+- React Native Safe Area Context
+- React Native Screens
+- React Native Gesture Handler
 
-For more information, please visit [CocoaPods Getting Started guide](https://guides.cocoapods.org/using/getting-started.html).
+## Usage
 
-```sh
-# Using npm
-npm run ios
+1. **Getting Started**: Launch the app and you'll see the home screen
+2. **Add Users**: Tap "Manage Users" to add players with names and colors
+3. **Start Game**: Select "Start New Game" and choose 2+ players
+4. **Track Points**: Use +/- buttons to adjust scores in real-time
+5. **Save Game**: Enter a game name and save your results
 
-# OR using Yarn
-yarn ios
-```
+## Color Palette
 
-If everything is set up correctly, you should see your new app running in the Android Emulator, iOS Simulator, or your connected device.
+- Primary Purple: `#8b5cf6`
+- Background: `#1a1a1a`
+- Card Background: `#2a2a2a`
+- Text Primary: `#ffffff`
+- Text Secondary: `#a0a0a0`
+- Accent Colors: Various colors for player identification
 
-This is one way to run your app — you can also build it directly from Android Studio or Xcode.
+## Data Storage
 
-## Step 3: Modify your app
+All user data and game results are stored locally using AsyncStorage, ensuring your data persists between app sessions.
 
-Now that you have successfully run the app, let's make changes!
+## Future Enhancements
 
-Open `App.tsx` in your text editor of choice and make some changes. When you save, your app will automatically update and reflect these changes — this is powered by [Fast Refresh](https://reactnative.dev/docs/fast-refresh).
-
-When you want to forcefully reload, for example to reset the state of your app, you can perform a full reload:
-
-- **Android**: Press the <kbd>R</kbd> key twice or select **"Reload"** from the **Dev Menu**, accessed via <kbd>Ctrl</kbd> + <kbd>M</kbd> (Windows/Linux) or <kbd>Cmd ⌘</kbd> + <kbd>M</kbd> (macOS).
-- **iOS**: Press <kbd>R</kbd> in iOS Simulator.
-
-## Congratulations! :tada:
-
-You've successfully run and modified your React Native App. :partying_face:
-
-### Now what?
-
-- If you want to add this new React Native code to an existing application, check out the [Integration guide](https://reactnative.dev/docs/integration-with-existing-apps).
-- If you're curious to learn more about React Native, check out the [docs](https://reactnative.dev/docs/getting-started).
-
-# Troubleshooting
-
-If you're having issues getting the above steps to work, see the [Troubleshooting](https://reactnative.dev/docs/troubleshooting) page.
-
-# Learn More
-
-To learn more about React Native, take a look at the following resources:
-
-- [React Native Website](https://reactnative.dev) - learn more about React Native.
-- [Getting Started](https://reactnative.dev/docs/environment-setup) - an **overview** of React Native and how setup your environment.
-- [Learn the Basics](https://reactnative.dev/docs/getting-started) - a **guided tour** of the React Native **basics**.
-- [Blog](https://reactnative.dev/blog) - read the latest official React Native **Blog** posts.
-- [`@facebook/react-native`](https://github.com/facebook/react-native) - the Open Source; GitHub **repository** for React Native.
+- Game history and statistics
+- Multiple game types
+- Export/import functionality
+- Team-based scoring
+- Custom scoring rules
