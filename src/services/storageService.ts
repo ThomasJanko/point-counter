@@ -65,4 +65,27 @@ export const storageService = {
       console.error('Error saving game:', error);
     }
   },
+
+  async updateGame(updatedGame: Game): Promise<void> {
+    try {
+      const games = await this.getGames();
+      const index = games.findIndex(game => game.id === updatedGame.id);
+      if (index !== -1) {
+        games[index] = updatedGame;
+        await AsyncStorage.setItem(GAMES_KEY, JSON.stringify(games));
+      }
+    } catch (error) {
+      console.error('Error updating game:', error);
+    }
+  },
+
+  async deleteGame(gameId: string): Promise<void> {
+    try {
+      const games = await this.getGames();
+      const filteredGames = games.filter(game => game.id !== gameId);
+      await AsyncStorage.setItem(GAMES_KEY, JSON.stringify(filteredGames));
+    } catch (error) {
+      console.error('Error deleting game:', error);
+    }
+  },
 };

@@ -10,12 +10,15 @@ import {
   Modal,
   ScrollView,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { storageService } from '../services/storageService';
-import { User } from '../types';
+import { User, Game } from '../types';
 
 const GameScreen = () => {
   const navigation = useNavigation();
+  const route = useRoute();
+  const savedGame = (route.params as any)?.savedGame as Game | undefined;
+
   const [users, setUsers] = useState<User[]>([]);
   const [selectedUsers, setSelectedUsers] = useState<User[]>([]);
   const [scores, setScores] = useState<{ [userId: string]: number }>({});
@@ -27,14 +30,59 @@ const GameScreen = () => {
   const [nextLineId, setNextLineId] = useState(1);
   const [focusedInput, setFocusedInput] = useState<string | null>(null);
   const [showMenu, setShowMenu] = useState(false);
+  const [showResultsModal, setShowResultsModal] = useState(false);
+  const [currentGameId, setCurrentGameId] = useState<string | null>(null);
 
   useEffect(() => {
     loadUsers();
+    if (savedGame) {
+      loadSavedGame(savedGame);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadUsers = async () => {
     const usersData = await storageService.getUsers();
     setUsers(usersData);
+  };
+
+  const loadSavedGame = (game: Game) => {
+    // Set game ID to track this loaded game
+    setCurrentGameId(game.id);
+
+    // Set game title
+    setGameTitle(game.name);
+
+    // Set selected users (players)
+    setSelectedUsers(game.players);
+
+    // Set scores
+    setScores(game.scores);
+
+    // Restore all score lines if they exist
+    if (game.scoreLines && Object.keys(game.scoreLines).length > 0) {
+      setScoreLines(game.scoreLines);
+
+      // Calculate next line ID based on existing lines
+      const lineIds = Object.keys(game.scoreLines);
+      const lineNumberRegex = /line_(\d+)/;
+      const maxLineNumber = Math.max(
+        ...lineIds.map(id => {
+          const match = lineNumberRegex.exec(id);
+          return match ? parseInt(match[1], 10) : 0;
+        }),
+      );
+      setNextLineId(maxLineNumber + 1);
+    } else {
+      // Fallback: Create a single score line with the final scores
+      const lineId = 'line_1';
+      const lineScores: { [userId: string]: number | null } = {};
+      game.players.forEach(player => {
+        lineScores[player.id] = game.scores[player.id] || 0;
+      });
+      setScoreLines({ [lineId]: lineScores });
+      setNextLineId(2);
+    }
   };
 
   const handleUserToggle = (user: User) => {
@@ -217,14 +265,23 @@ const GameScreen = () => {
 
     try {
       const game = {
-        id: Date.now().toString(),
+        id: currentGameId || Date.now().toString(),
         name: gameTitle.trim(),
         players: selectedUsers,
         scores,
+        scoreLines,
         createdAt: new Date(),
       };
 
-      await storageService.saveGame(game);
+      if (currentGameId) {
+        // Update existing game
+        await storageService.updateGame(game);
+      } else {
+        // Save new game
+        await storageService.saveGame(game);
+        setCurrentGameId(game.id);
+      }
+
       Alert.alert('Succès', 'Partie enregistrée avec succès !', [
         { text: 'OK', onPress: () => navigation.goBack() },
       ]);
@@ -235,6 +292,56 @@ const GameScreen = () => {
         "Échec de l'enregistrement de la partie. Veuillez réessayer.",
       );
     }
+  };
+
+  const endGame = async () => {
+    // Check if game title is set
+    if (!gameTitle.trim()) {
+      Alert.alert(
+        'Erreur',
+        'Veuillez entrer un titre de partie avant de terminer.',
+      );
+      return;
+    }
+
+    try {
+      // Save the game first
+      const game = {
+        id: currentGameId || Date.now().toString(),
+        name: gameTitle.trim(),
+        players: selectedUsers,
+        scores,
+        scoreLines,
+        createdAt: new Date(),
+      };
+
+      if (currentGameId) {
+        // Update existing game
+        await storageService.updateGame(game);
+      } else {
+        // Save new game
+        await storageService.saveGame(game);
+        setCurrentGameId(game.id);
+      }
+
+      // Show results modal
+      setShowResultsModal(true);
+    } catch (error) {
+      console.error('Error saving game:', error);
+      Alert.alert(
+        'Erreur',
+        "Échec de l'enregistrement de la partie. Veuillez réessayer.",
+      );
+    }
+  };
+
+  const getRankedPlayers = () => {
+    return selectedUsers
+      .map(user => ({
+        ...user,
+        score: scores[user.id] || 0,
+      }))
+      .sort((a, b) => b.score - a.score);
   };
 
   const renderUserSelection = ({ item }: { item: User }) => {
@@ -346,7 +453,7 @@ const GameScreen = () => {
             {/* Header Row */}
             <View style={styles.tableHeader}>
               <Text style={styles.lineNumberHeader}>#</Text>
-              {selectedUsers.map((user, index) => (
+              {selectedUsers.map(user => (
                 <View key={user.id} style={styles.playerHeaderCell}>
                   <View
                     style={[
@@ -513,16 +620,15 @@ const GameScreen = () => {
               style={[styles.menuItem, styles.menuItemDanger]}
               onPress={() => {
                 setShowMenu(false);
-                // Add end game logic here
                 Alert.alert(
                   'Terminer la partie',
-                  'Êtes-vous sûr de vouloir terminer cette partie ?',
+                  'La partie sera enregistrée et le classement final sera affiché.',
                   [
                     { text: 'Annuler', style: 'cancel' },
                     {
                       text: 'Terminer',
                       style: 'destructive',
-                      onPress: () => navigation.goBack(),
+                      onPress: endGame,
                     },
                   ],
                 );
@@ -534,6 +640,60 @@ const GameScreen = () => {
             </TouchableOpacity>
           </View>
         </TouchableOpacity>
+      </Modal>
+
+      {/* Results Modal */}
+      <Modal
+        visible={showResultsModal}
+        animationType="slide"
+        transparent={true}
+      >
+        <View style={styles.resultsModalOverlay}>
+          <View style={styles.resultsModalContent}>
+            <Text style={styles.resultsTitle}>🏆 Partie Terminée 🏆</Text>
+            <Text style={styles.resultsSubtitle}>Classement Final</Text>
+
+            <ScrollView style={styles.rankingList}>
+              {getRankedPlayers().map((player, index) => (
+                <View key={player.id} style={styles.rankingItem}>
+                  <View style={styles.rankingLeft}>
+                    <Text style={styles.rankingPosition}>
+                      {index === 0
+                        ? '🥇'
+                        : index === 1
+                        ? '🥈'
+                        : index === 2
+                        ? '🥉'
+                        : `${index + 1}.`}
+                    </Text>
+                    <View
+                      style={[
+                        styles.colorIndicator,
+                        { backgroundColor: player.color },
+                      ]}
+                    />
+                    <Text style={styles.rankingName}>{player.name}</Text>
+                  </View>
+                  <Text style={styles.rankingScore}>{player.score} pts</Text>
+                </View>
+              ))}
+            </ScrollView>
+
+            <Text style={styles.savedMessage}>
+              ✓ Partie enregistrée dans l'historique
+            </Text>
+
+            <TouchableOpacity
+              style={styles.resultsButton}
+              onPress={() => {
+                setShowResultsModal(false);
+                navigation.goBack();
+              }}
+            >
+              <Text style={styles.resultsButtonText}>Retour à l'accueil</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
       </Modal>
     </View>
   );
@@ -552,7 +712,7 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: 'bold',
     color: '#ffffff',
-    marginBottom: 8,
+    marginBottom: 6,
   },
   headerSubtitle: {
     fontSize: 16,
@@ -649,8 +809,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   gameTitleContainer: {
-    padding: 20,
-    paddingBottom: 10,
+    paddingHorizontal: 20,
   },
   gameTitleLabel: {
     fontSize: 16,
@@ -668,11 +827,13 @@ const styles = StyleSheet.create({
     borderColor: '#3a3a3a',
   },
   userSelectionHeader: {
-    flexDirection: 'row',
+    flexDirection: 'column',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     paddingHorizontal: 20,
+    gap: 10,
     paddingBottom: 10,
+    marginTop: 14,
   },
   userSelectionTitle: {
     fontSize: 18,
@@ -859,6 +1020,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 20,
+    gap: 10,
   },
   modalTitle: {
     fontSize: 20,
@@ -947,6 +1109,93 @@ const styles = StyleSheet.create({
   },
   menuItemTextDanger: {
     color: '#ff6b6b',
+  },
+  // Results Modal Styles
+  resultsModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.9)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  resultsModalContent: {
+    backgroundColor: '#2a2a2a',
+    borderRadius: 20,
+    padding: 24,
+    width: '90%',
+    maxHeight: '80%',
+    borderWidth: 2,
+    borderColor: '#8b5cf6',
+  },
+  resultsTitle: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#8b5cf6',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  resultsSubtitle: {
+    fontSize: 18,
+    color: '#ffffff',
+    textAlign: 'center',
+    marginBottom: 24,
+    fontWeight: '600',
+  },
+  rankingList: {
+    maxHeight: 400,
+    marginBottom: 20,
+  },
+  rankingItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#1a1a1a',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#3a3a3a',
+  },
+  rankingLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  rankingPosition: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginRight: 12,
+    width: 40,
+    textAlign: 'center',
+  },
+  rankingName: {
+    fontSize: 18,
+    color: '#ffffff',
+    fontWeight: '600',
+    marginLeft: 12,
+    flex: 1,
+  },
+  rankingScore: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#8b5cf6',
+  },
+  savedMessage: {
+    fontSize: 14,
+    color: '#4ade80',
+    textAlign: 'center',
+    marginBottom: 16,
+    fontWeight: '500',
+  },
+  resultsButton: {
+    backgroundColor: '#8b5cf6',
+    borderRadius: 12,
+    padding: 16,
+    alignItems: 'center',
+  },
+  resultsButtonText: {
+    color: '#ffffff',
+    fontSize: 18,
+    fontWeight: '600',
   },
 });
 
