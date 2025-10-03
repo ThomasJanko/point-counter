@@ -11,6 +11,8 @@ export interface Game {
   players: User[];
   scores: { [userId: string]: number };
   scoreLines?: { [lineId: string]: { [userId: string]: number | null } };
+  gameGoal: 'highest' | 'lowest';
+  scoreLimit: number | null;
   createdAt: Date;
 }
 

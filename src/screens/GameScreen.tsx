@@ -1,21 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  TextInput,
-  FlatList,
-  Alert,
-  Modal,
-  ScrollView,
-} from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
+import type { NavigationProp } from '@react-navigation/native';
 import { storageService } from '../services/storageService';
 import { User, Game } from '../types';
+import UserSelection from '../components/UserSelection';
+import ScoreTable from '../components/ScoreTable';
+import TotalScores from '../components/TotalScores';
+import GameMenu from '../components/GameMenu';
+import ResultsModal from '../components/ResultsModal';
+import UserSelectionModal from '../components/UserSelectionModal';
 
 const GameScreen = () => {
-  const navigation = useNavigation();
+  const navigation = useNavigation<NavigationProp<any>>();
   const route = useRoute();
   const savedGame = (route.params as any)?.savedGame as Game | undefined;
 
@@ -32,6 +29,11 @@ const GameScreen = () => {
   const [showMenu, setShowMenu] = useState(false);
   const [showResultsModal, setShowResultsModal] = useState(false);
   const [currentGameId, setCurrentGameId] = useState<string | null>(null);
+  const [gameGoal, setGameGoal] = useState<'highest' | 'lowest'>('highest');
+  const [scoreLimit, setScoreLimit] = useState<number | null>(null);
+  const [limitReachedUsers, setLimitReachedUsers] = useState<Set<string>>(
+    new Set(),
+  );
 
   useEffect(() => {
     loadUsers();
@@ -58,6 +60,10 @@ const GameScreen = () => {
 
     // Set scores
     setScores(game.scores);
+
+    // Set game configuration
+    setGameGoal(game.gameGoal || 'highest');
+    setScoreLimit(game.scoreLimit || null);
 
     // Restore all score lines if they exist
     if (game.scoreLines && Object.keys(game.scoreLines).length > 0) {
@@ -125,27 +131,23 @@ const GameScreen = () => {
     });
     setNextLineId(prev => prev + 1);
 
+    // Reset limit reached users for new game
+    setLimitReachedUsers(new Set());
+
     // Hide the user selection screen
     setShowUserSelection(false);
   };
 
   const updateScoreInLine = (lineId: string, userId: string, value: string) => {
+    // Always store the raw string value during typing
     setScoreLines(prev => {
       const updatedLines = {
         ...prev,
         [lineId]: {
           ...prev[lineId],
-          [userId]: value, // store raw string
+          [userId]: value as any, // Store as string during typing
         },
       };
-
-      // Try parsing into number only if it's a valid float
-      const numValue = parseFloat(value);
-      const isValidNumber = !isNaN(numValue);
-
-      if (isValidNumber) {
-        updatedLines[lineId][userId] = numValue;
-      }
 
       // ---- auto-add new line logic stays the same ----
       const updatedLine = updatedLines[lineId];
@@ -173,7 +175,7 @@ const GameScreen = () => {
             newLineScores[user.id] = null;
           });
           updatedLines[newLineId] = newLineScores;
-          setNextLineId(prev => prev + 1);
+          setNextLineId(prevLineId => prevLineId + 1);
         }
       }
 
@@ -181,30 +183,106 @@ const GameScreen = () => {
     });
 
     // Update total scores with the new value
-    setScores(prev => {
-      const newTotalScores = { ...prev };
+    setScores(prevScores => {
+      const newTotalScores = { ...prevScores };
 
       // Recalculate total for the current user
       let userTotal = 0;
       Object.values(scoreLines).forEach(line => {
         const lineValue = line[userId];
-        if (
-          lineValue !== null &&
-          lineValue !== undefined &&
-          typeof lineValue === 'number'
-        ) {
-          userTotal += lineValue;
+        if (lineValue !== null && lineValue !== undefined) {
+          const numValue = parseFloat(lineValue.toString());
+          if (!isNaN(numValue)) {
+            userTotal += numValue;
+          }
         }
       });
 
       // Add the current update
       const oldValue = scoreLines[lineId][userId] || 0;
-      const numValue = parseFloat(value);
-      const currentValue = isNaN(numValue) ? 0 : numValue;
-      newTotalScores[userId] = userTotal - oldValue + currentValue;
+      const oldNumValue = parseFloat(oldValue.toString());
+      const currentValue = parseFloat(value);
+      const validCurrentValue = isNaN(currentValue) ? 0 : currentValue;
+      const validOldValue = isNaN(oldNumValue) ? 0 : oldNumValue;
+
+      newTotalScores[userId] = userTotal - validOldValue + validCurrentValue;
 
       return newTotalScores;
     });
+  };
+
+  const checkScoreLimit = (userId: string) => {
+    if (scoreLimit === null) return;
+
+    // Check if this user has already reached the limit and chose to continue
+    if (limitReachedUsers.has(userId)) return;
+
+    // Add a small delay to ensure the score has been properly updated
+    setTimeout(() => {
+      // Process string values to numbers
+      setScoreLines(prev => {
+        const updatedLines = { ...prev };
+
+        // Process all entries for this user
+        Object.keys(updatedLines).forEach(lineId => {
+          const lineValue = updatedLines[lineId][userId];
+          if (lineValue !== null && lineValue !== undefined) {
+            const numValue = parseFloat(lineValue.toString());
+            if (!isNaN(numValue)) {
+              updatedLines[lineId][userId] = numValue;
+            }
+          }
+        });
+
+        return updatedLines;
+      });
+
+      // Then check total score after processing
+      setTimeout(() => {
+        // Calculate current total score for the user
+        let userTotal = 0;
+        Object.values(scoreLines).forEach(line => {
+          const lineValue = line[userId];
+          if (
+            lineValue !== null &&
+            lineValue !== undefined &&
+            typeof lineValue === 'number'
+          ) {
+            userTotal += lineValue;
+          }
+        });
+
+        // Check if user has reached or exceeded the score limit
+        if (userTotal >= scoreLimit) {
+          const userWhoReachedLimit = selectedUsers.find(u => u.id === userId);
+          if (userWhoReachedLimit) {
+            Alert.alert(
+              '🎯 Limite Atteinte!',
+              `${userWhoReachedLimit.name} a atteint la limite de ${scoreLimit} points!\n\nQue souhaitez-vous faire ?`,
+              [
+                {
+                  text: 'Continuer',
+                  style: 'cancel',
+                  onPress: () => {
+                    // Add user to the set of users who reached limit and chose to continue
+                    setLimitReachedUsers(prev => new Set([...prev, userId]));
+                  },
+                },
+                {
+                  text: 'Terminer la partie',
+                  onPress: () => {
+                    // Update the score first, then end the game
+                    setTimeout(() => {
+                      endGame();
+                    }, 100);
+                  },
+                },
+              ],
+            );
+          }
+        }
+      }, 100);
+    }, 300); // Small delay to ensure score is updated
   };
 
   const deleteScoreLine = (lineId: string) => {
@@ -237,18 +315,18 @@ const GameScreen = () => {
         {
           text: 'Réinitialiser',
           onPress: () => {
-            const resetScores: { [userId: string]: number } = {};
+            const newResetScores: { [userId: string]: number } = {};
             selectedUsers.forEach(user => {
-              resetScores[user.id] = 0;
+              newResetScores[user.id] = 0;
             });
-            setScores(resetScores);
+            setScores(newResetScores);
 
             // Reset all score lines
             const resetLines: {
               [lineId: string]: { [userId: string]: number };
             } = {};
             Object.keys(scoreLines).forEach(lineId => {
-              resetLines[lineId] = { ...resetScores };
+              resetLines[lineId] = { ...newResetScores };
             });
             setScoreLines(resetLines);
           },
@@ -270,6 +348,8 @@ const GameScreen = () => {
         players: selectedUsers,
         scores,
         scoreLines,
+        gameGoal,
+        scoreLimit,
         createdAt: new Date(),
       };
 
@@ -312,6 +392,8 @@ const GameScreen = () => {
         players: selectedUsers,
         scores,
         scoreLines,
+        gameGoal,
+        scoreLimit,
         createdAt: new Date(),
       };
 
@@ -341,96 +423,46 @@ const GameScreen = () => {
         ...user,
         score: scores[user.id] || 0,
       }))
-      .sort((a, b) => b.score - a.score);
-  };
-
-  const renderUserSelection = ({ item }: { item: User }) => {
-    const isSelected = selectedUsers.some(u => u.id === item.id);
-    return (
-      <TouchableOpacity
-        style={[
-          styles.userSelectionItem,
-          isSelected && styles.selectedUserItem,
-        ]}
-        onPress={() => handleUserToggle(item)}
-        activeOpacity={0.7}
-      >
-        <View style={styles.userSelectionInfo}>
-          <View
-            style={[styles.colorIndicator, { backgroundColor: item.color }]}
-          />
-          <Text style={styles.userSelectionName}>{item.name}</Text>
-        </View>
-        {isSelected && <Text style={styles.checkmark}>✓</Text>}
-      </TouchableOpacity>
-    );
+      .sort((a, b) => {
+        if (gameGoal === 'highest') {
+          return b.score - a.score;
+        } else {
+          return a.score - b.score;
+        }
+      });
   };
 
   if (selectedUsers.length === 0 || Object.keys(scoreLines).length === 0) {
     return (
-      <View style={styles.container}>
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>Nouvelle Partie</Text>
-          <Text style={styles.headerSubtitle}>
-            Choisissez au moins 2 joueurs pour commencer la partie
-          </Text>
-        </View>
-
-        <View style={styles.gameTitleContainer}>
-          <Text style={styles.gameTitleLabel}>Titre de la Partie</Text>
-          <TextInput
-            style={styles.gameTitleInput}
-            value={gameTitle}
-            onChangeText={setGameTitle}
-            placeholder="Entrez le titre de la partie"
-            placeholderTextColor="#666"
-          />
-        </View>
-
-        <View style={styles.userSelectionHeader}>
-          <Text style={styles.userSelectionTitle}>
-            Sélectionner les Joueurs
-          </Text>
-          <TouchableOpacity
-            style={styles.addUserButton}
-            onPress={() => navigation.navigate('AddUser')}
-          >
-            <Text style={styles.addUserButtonText}>+ Nouveau Joueur</Text>
-          </TouchableOpacity>
-        </View>
-
-        <FlatList
-          data={users}
-          keyExtractor={item => item.id}
-          renderItem={renderUserSelection}
-          contentContainerStyle={styles.userListContainer}
-        />
-
-        <View style={styles.startGameContainer}>
-          <TouchableOpacity
-            style={[
-              styles.startGameButton,
-              selectedUsers.length < 2 && styles.disabledButton,
-            ]}
-            onPress={startGame}
-            disabled={selectedUsers.length < 2}
-          >
-            <Text style={styles.startGameButtonText}>
-              Commencer la Partie ({selectedUsers.length} joueur
-              {selectedUsers.length !== 1 ? 's' : ''})
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </View>
+      <UserSelection
+        users={users}
+        selectedUsers={selectedUsers}
+        gameTitle={gameTitle}
+        gameGoal={gameGoal}
+        scoreLimit={scoreLimit}
+        onGameTitleChange={setGameTitle}
+        onGameGoalChange={setGameGoal}
+        onScoreLimitChange={setScoreLimit}
+        onUserToggle={handleUserToggle}
+        onStartGame={startGame}
+        onAddUser={() => navigation.navigate('AddUser')}
+      />
     );
   }
 
   return (
     <View style={styles.container}>
       <View style={styles.gameHeader}>
-        <Text style={styles.gameTitleDisplay}>
-          {gameTitle || 'Partie sans titre'}
-        </Text>
+        <View style={styles.gameHeaderLeft}>
+          <Text style={styles.gameTitleDisplay}>
+            {gameTitle || 'Partie sans titre'}
+          </Text>
+          {scoreLimit && (
+            <Text style={styles.scoreLimitIndicator}>
+              Limite: {scoreLimit} pts
+            </Text>
+          )}
+        </View>
         <TouchableOpacity
           style={styles.menuButton}
           onPress={() => setShowMenu(true)}
@@ -439,262 +471,54 @@ const GameScreen = () => {
         </TouchableOpacity>
       </View>
 
-      <View style={styles.scoreTableContainer}>
-        <View style={styles.tableHeaderContainer}>
-          <Text style={styles.leaderboardTitle}>Scores</Text>
-        </View>
+      <ScoreTable
+        selectedUsers={selectedUsers}
+        scoreLines={scoreLines}
+        focusedInput={focusedInput}
+        scoreLimit={scoreLimit}
+        onScoreChange={updateScoreInLine}
+        onInputFocus={setFocusedInput}
+        onInputBlur={(userId: string) => {
+          setFocusedInput(null);
+          checkScoreLimit(userId);
+        }}
+        onDeleteLine={deleteScoreLine}
+      />
 
-        <ScrollView
-          style={styles.scoreTable}
-          horizontal={true}
-          showsHorizontalScrollIndicator={true}
-        >
-          <View style={styles.tableContainer}>
-            {/* Header Row */}
-            <View style={styles.tableHeader}>
-              <Text style={styles.lineNumberHeader}>#</Text>
-              {selectedUsers.map(user => (
-                <View key={user.id} style={styles.playerHeaderCell}>
-                  <View
-                    style={[
-                      styles.colorIndicator,
-                      { backgroundColor: user.color },
-                    ]}
-                  />
-                  <Text style={styles.playerHeaderText}>{user.name}</Text>
-                </View>
-              ))}
-              <Text style={styles.actionHeader}>Action</Text>
-            </View>
+      <TotalScores selectedUsers={selectedUsers} scores={scores} />
 
-            {/* Score Lines */}
-            {Object.entries(scoreLines).map(
-              ([lineId, lineScores], lineIndex) => (
-                <View key={lineId} style={styles.tableRow}>
-                  <Text style={styles.lineNumberCell}>{lineIndex + 1}</Text>
-                  {selectedUsers.map(user => {
-                    const inputKey = `${lineId}_${user.id}`;
-                    const isFocused = focusedInput === inputKey;
-                    return (
-                      <TextInput
-                        key={inputKey}
-                        style={[
-                          styles.scoreInputCell,
-                          isFocused && styles.scoreInputCellFocused,
-                        ]}
-                        value={
-                          lineScores[user.id] !== null
-                            ? lineScores[user.id]?.toString() || ''
-                            : ''
-                        }
-                        onChangeText={value =>
-                          updateScoreInLine(lineId, user.id, value)
-                        }
-                        onFocus={() => setFocusedInput(inputKey)}
-                        onBlur={() => setFocusedInput(null)}
-                        keyboardType="numeric"
-                        placeholder="0"
-                        placeholderTextColor="#666"
-                        selectTextOnFocus={true}
-                        returnKeyType="next"
-                      />
-                    );
-                  })}
-                  <TouchableOpacity
-                    style={styles.deleteLineButton}
-                    onPress={() => deleteScoreLine(lineId)}
-                  >
-                    <Text style={styles.deleteLineButtonText}>🗑️</Text>
-                  </TouchableOpacity>
-                </View>
-              ),
-            )}
-          </View>
-        </ScrollView>
-      </View>
-
-      {/* Total Scores Display */}
-      <View style={styles.totalScoresContainer}>
-        <Text style={styles.totalScoresTitle}>Totaux</Text>
-        <View style={styles.totalScoresGrid}>
-          {selectedUsers.map(user => (
-            <View key={user.id} style={styles.totalScoreItem}>
-              <View
-                style={[styles.colorIndicator, { backgroundColor: user.color }]}
-              />
-              <Text style={styles.totalScoreName}>{user.name}</Text>
-              <Text style={styles.totalScoreValue}>{scores[user.id] || 0}</Text>
-            </View>
-          ))}
-        </View>
-      </View>
-
-      <Modal
+      <UserSelectionModal
         visible={showUserSelection}
-        animationType="slide"
-        transparent={true}
-      >
-        <View style={styles.modalContainer}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Sélectionner les Joueurs</Text>
-              <TouchableOpacity
-                style={styles.modalAddUserButton}
-                onPress={() => {
-                  setShowUserSelection(false);
-                  navigation.navigate('AddUser');
-                }}
-              >
-                <Text style={styles.modalAddUserButtonText}>+ Nouveau</Text>
-              </TouchableOpacity>
-            </View>
-            <FlatList
-              data={users}
-              keyExtractor={item => item.id}
-              renderItem={renderUserSelection}
-              contentContainerStyle={styles.modalUserList}
-            />
-            <View style={styles.modalButtons}>
-              <TouchableOpacity
-                style={styles.modalCancelButton}
-                onPress={() => setShowUserSelection(false)}
-              >
-                <Text style={styles.modalCancelButtonText}>Annuler</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.modalConfirmButton}
-                onPress={() => {
-                  if (selectedUsers.length < 2) {
-                    Alert.alert(
-                      'Erreur',
-                      'Veuillez sélectionner au moins 2 joueurs.',
-                    );
-                    return;
-                  }
-                  setShowUserSelection(false);
-                }}
-              >
-                <Text style={styles.modalConfirmButtonText}>Confirmer</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
+        users={users}
+        selectedUsers={selectedUsers}
+        onUserToggle={handleUserToggle}
+        onClose={() => setShowUserSelection(false)}
+        onConfirm={() => setShowUserSelection(false)}
+        onAddUser={() => {
+          setShowUserSelection(false);
+          navigation.navigate('AddUser');
+        }}
+      />
 
-      {/* 3-Dot Menu Modal */}
-      <Modal visible={showMenu} animationType="fade" transparent={true}>
-        <TouchableOpacity
-          style={styles.menuOverlay}
-          activeOpacity={1}
-          onPress={() => setShowMenu(false)}
-        >
-          <View style={styles.menuContainer}>
-            <TouchableOpacity
-              style={styles.menuItem}
-              onPress={() => {
-                setShowMenu(false);
-                setShowUserSelection(true);
-              }}
-            >
-              <Text style={styles.menuItemText}>Changer les joueurs</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.menuItem}
-              onPress={() => {
-                setShowMenu(false);
-                resetScores();
-              }}
-            >
-              <Text style={styles.menuItemText}>Réinitialiser</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.menuItem}
-              onPress={() => {
-                setShowMenu(false);
-                saveGame();
-              }}
-            >
-              <Text style={styles.menuItemText}>Enregistrer la partie</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.menuItem, styles.menuItemDanger]}
-              onPress={() => {
-                setShowMenu(false);
-                Alert.alert(
-                  'Terminer la partie',
-                  'La partie sera enregistrée et le classement final sera affiché.',
-                  [
-                    { text: 'Annuler', style: 'cancel' },
-                    {
-                      text: 'Terminer',
-                      style: 'destructive',
-                      onPress: endGame,
-                    },
-                  ],
-                );
-              }}
-            >
-              <Text style={[styles.menuItemText, styles.menuItemTextDanger]}>
-                Terminer la partie
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </TouchableOpacity>
-      </Modal>
+      <GameMenu
+        visible={showMenu}
+        onClose={() => setShowMenu(false)}
+        onChangePlayers={() => setShowUserSelection(true)}
+        onReset={resetScores}
+        onSave={saveGame}
+        onEndGame={endGame}
+      />
 
-      {/* Results Modal */}
-      <Modal
+      <ResultsModal
         visible={showResultsModal}
-        animationType="slide"
-        transparent={true}
-      >
-        <View style={styles.resultsModalOverlay}>
-          <View style={styles.resultsModalContent}>
-            <Text style={styles.resultsTitle}>🏆 Partie Terminée 🏆</Text>
-            <Text style={styles.resultsSubtitle}>Classement Final</Text>
-
-            <ScrollView style={styles.rankingList}>
-              {getRankedPlayers().map((player, index) => (
-                <View key={player.id} style={styles.rankingItem}>
-                  <View style={styles.rankingLeft}>
-                    <Text style={styles.rankingPosition}>
-                      {index === 0
-                        ? '🥇'
-                        : index === 1
-                        ? '🥈'
-                        : index === 2
-                        ? '🥉'
-                        : `${index + 1}.`}
-                    </Text>
-                    <View
-                      style={[
-                        styles.colorIndicator,
-                        { backgroundColor: player.color },
-                      ]}
-                    />
-                    <Text style={styles.rankingName}>{player.name}</Text>
-                  </View>
-                  <Text style={styles.rankingScore}>{player.score} pts</Text>
-                </View>
-              ))}
-            </ScrollView>
-
-            <Text style={styles.savedMessage}>
-              ✓ Partie enregistrée dans l'historique
-            </Text>
-
-            <TouchableOpacity
-              style={styles.resultsButton}
-              onPress={() => {
-                setShowResultsModal(false);
-                navigation.goBack();
-              }}
-            >
-              <Text style={styles.resultsButtonText}>Retour à l'accueil</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
+        rankedPlayers={getRankedPlayers()}
+        gameGoal={gameGoal}
+        scoreLimit={scoreLimit}
+        onClose={() => {
+          setShowResultsModal(false);
+          navigation.goBack();
+        }}
+      />
     </View>
   );
 };
@@ -704,93 +528,26 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#1a1a1a',
   },
-  header: {
-    padding: 20,
-    alignItems: 'center',
-  },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#ffffff',
-    marginBottom: 6,
-  },
-  headerSubtitle: {
-    fontSize: 16,
-    color: '#a0a0a0',
-    textAlign: 'center',
-  },
-  userListContainer: {
-    padding: 20,
-  },
-  userSelectionItem: {
-    backgroundColor: '#2a2a2a',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    borderWidth: 1,
-    borderColor: '#3a3a3a',
-  },
-  selectedUserItem: {
-    borderColor: '#8b5cf6',
-    backgroundColor: '#2a1a3a',
-  },
-  userSelectionInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  userSelectionName: {
-    fontSize: 16,
-    color: '#ffffff',
-    fontWeight: '500',
-    marginLeft: 12,
-  },
-  colorIndicator: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-  },
-  checkmark: {
-    color: '#8b5cf6',
-    fontSize: 20,
-    fontWeight: 'bold',
-  },
-  startGameContainer: {
-    padding: 20,
-  },
-  startGameButton: {
-    backgroundColor: '#8b5cf6',
-    borderRadius: 12,
-    padding: 16,
-    alignItems: 'center',
-  },
-  disabledButton: {
-    backgroundColor: '#4a4a4a',
-  },
-  startGameButtonText: {
-    color: '#ffffff',
-    fontSize: 18,
-    fontWeight: '600',
-  },
   gameHeader: {
     flexDirection: 'row',
     padding: 20,
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  gameTitleDisplay: {
+  gameHeaderLeft: {
     flex: 1,
+    marginRight: 12,
+  },
+  gameTitleDisplay: {
     fontSize: 20,
     fontWeight: 'bold',
     color: '#ffffff',
-    marginRight: 12,
+    marginBottom: 2,
   },
-  headerButtons: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  scoreLimitIndicator: {
+    fontSize: 12,
+    color: '#8b5cf6',
+    fontWeight: '500',
   },
   menuButton: {
     width: 40,
@@ -807,395 +564,6 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 20,
     fontWeight: 'bold',
-  },
-  gameTitleContainer: {
-    paddingHorizontal: 20,
-  },
-  gameTitleLabel: {
-    fontSize: 16,
-    color: '#ffffff',
-    marginBottom: 8,
-    fontWeight: '500',
-  },
-  gameTitleInput: {
-    backgroundColor: '#2a2a2a',
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-    color: '#ffffff',
-    borderWidth: 1,
-    borderColor: '#3a3a3a',
-  },
-  userSelectionHeader: {
-    flexDirection: 'column',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    paddingHorizontal: 20,
-    gap: 10,
-    paddingBottom: 10,
-    marginTop: 14,
-  },
-  userSelectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#ffffff',
-  },
-  addUserButton: {
-    backgroundColor: '#8b5cf6',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 6,
-  },
-  addUserButtonText: {
-    color: '#ffffff',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  scoreTableContainer: {
-    marginTop: -20,
-    flex: 1,
-    padding: 10,
-    paddingTop: 5,
-  },
-  tableHeaderContainer: {
-    marginBottom: 8,
-  },
-  leaderboardTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#ffffff',
-    textAlign: 'center',
-  },
-  scoreTable: {
-    flex: 1,
-    backgroundColor: '#2a2a2a',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#3a3a3a',
-  },
-  tableContainer: {
-    minWidth: 400,
-  },
-  tableHeader: {
-    flexDirection: 'row',
-    backgroundColor: '#3a3a3a',
-    paddingVertical: 12,
-    paddingHorizontal: 8,
-    borderTopLeftRadius: 12,
-    borderTopRightRadius: 12,
-  },
-  lineNumberHeader: {
-    width: 40,
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#8b5cf6',
-    textAlign: 'center',
-  },
-  playerHeaderCell: {
-    width: 100,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginHorizontal: 4,
-  },
-  playerHeaderText: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    color: '#8b5cf6',
-    marginLeft: 4,
-    textAlign: 'center',
-  },
-  actionHeader: {
-    width: 50,
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#8b5cf6',
-    textAlign: 'center',
-  },
-  tableRow: {
-    flexDirection: 'row',
-    paddingVertical: 12,
-    paddingHorizontal: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#3a3a3a',
-    alignItems: 'center',
-    minHeight: 50,
-  },
-  lineNumberCell: {
-    width: 40,
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#8b5cf6',
-    textAlign: 'center',
-  },
-  scoreInputCell: {
-    width: 100,
-    backgroundColor: '#2a2a2a',
-    borderRadius: 8,
-    borderWidth: 2,
-    borderColor: '#4a4a4a',
-    textAlign: 'center',
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#ffffff',
-    marginHorizontal: 4,
-    paddingHorizontal: 8,
-    overflow: 'hidden',
-  },
-  scoreInputCellFocused: {
-    borderColor: '#8b5cf6',
-    backgroundColor: '#3a2a4a',
-    shadowColor: '#8b5cf6',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 4,
-  },
-  deleteLineButton: {
-    width: 50,
-    height: 32,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  deleteLineButtonText: {
-    fontSize: 16,
-  },
-  totalScoresContainer: {
-    backgroundColor: '#2a2a2a',
-    borderRadius: 12,
-    padding: 10,
-    margin: 14,
-    marginTop: 0,
-    borderWidth: 1,
-    borderColor: '#3a3a3a',
-  },
-  totalScoresTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#8b5cf6',
-    textAlign: 'center',
-    marginBottom: 12,
-  },
-  totalScoresGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-around',
-  },
-  totalScoreItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#1a1a1a',
-    borderRadius: 8,
-    padding: 8,
-    margin: 4,
-    minWidth: 120,
-  },
-  totalScoreName: {
-    fontSize: 14,
-    color: '#ffffff',
-    fontWeight: '500',
-    marginLeft: 8,
-    flex: 1,
-  },
-  totalScoreValue: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#8b5cf6',
-  },
-  modalContainer: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.8)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  modalContent: {
-    backgroundColor: '#2a2a2a',
-    borderRadius: 16,
-    padding: 20,
-    width: '90%',
-    maxHeight: '80%',
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 20,
-    gap: 10,
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#ffffff',
-  },
-  modalAddUserButton: {
-    backgroundColor: '#8b5cf6',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 6,
-  },
-  modalAddUserButtonText: {
-    color: '#ffffff',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  modalUserList: {
-    maxHeight: 300,
-  },
-  modalButtons: {
-    flexDirection: 'row',
-    marginTop: 20,
-  },
-  modalCancelButton: {
-    flex: 1,
-    backgroundColor: 'transparent',
-    borderWidth: 2,
-    borderColor: '#6b7280',
-    borderRadius: 8,
-    padding: 12,
-    alignItems: 'center',
-    marginRight: 8,
-  },
-  modalCancelButtonText: {
-    color: '#6b7280',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  modalConfirmButton: {
-    flex: 1,
-    backgroundColor: '#8b5cf6',
-    borderRadius: 8,
-    padding: 12,
-    alignItems: 'center',
-    marginLeft: 8,
-  },
-  modalConfirmButtonText: {
-    color: '#ffffff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  // 3-Dot Menu Styles
-  menuOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-start',
-    alignItems: 'flex-end',
-    paddingTop: 60,
-    paddingRight: 20,
-  },
-  menuContainer: {
-    backgroundColor: '#2a2a2a',
-    borderRadius: 12,
-    padding: 8,
-    minWidth: 200,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
-  },
-  menuItem: {
-    paddingVertical: 16,
-    paddingHorizontal: 20,
-    borderRadius: 8,
-    marginVertical: 2,
-  },
-  menuItemDanger: {
-    backgroundColor: '#4a1a1a',
-  },
-  menuItemText: {
-    color: '#ffffff',
-    fontSize: 16,
-    fontWeight: '500',
-  },
-  menuItemTextDanger: {
-    color: '#ff6b6b',
-  },
-  // Results Modal Styles
-  resultsModalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.9)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  resultsModalContent: {
-    backgroundColor: '#2a2a2a',
-    borderRadius: 20,
-    padding: 24,
-    width: '90%',
-    maxHeight: '80%',
-    borderWidth: 2,
-    borderColor: '#8b5cf6',
-  },
-  resultsTitle: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#8b5cf6',
-    textAlign: 'center',
-    marginBottom: 8,
-  },
-  resultsSubtitle: {
-    fontSize: 18,
-    color: '#ffffff',
-    textAlign: 'center',
-    marginBottom: 24,
-    fontWeight: '600',
-  },
-  rankingList: {
-    maxHeight: 400,
-    marginBottom: 20,
-  },
-  rankingItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: '#1a1a1a',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#3a3a3a',
-  },
-  rankingLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  rankingPosition: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginRight: 12,
-    width: 40,
-    textAlign: 'center',
-  },
-  rankingName: {
-    fontSize: 18,
-    color: '#ffffff',
-    fontWeight: '600',
-    marginLeft: 12,
-    flex: 1,
-  },
-  rankingScore: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#8b5cf6',
-  },
-  savedMessage: {
-    fontSize: 14,
-    color: '#4ade80',
-    textAlign: 'center',
-    marginBottom: 16,
-    fontWeight: '500',
-  },
-  resultsButton: {
-    backgroundColor: '#8b5cf6',
-    borderRadius: 12,
-    padding: 16,
-    alignItems: 'center',
-  },
-  resultsButtonText: {
-    color: '#ffffff',
-    fontSize: 18,
-    fontWeight: '600',
   },
 });
 
