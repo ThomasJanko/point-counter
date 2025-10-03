@@ -88,4 +88,12 @@ export const storageService = {
       console.error('Error deleting game:', error);
     }
   },
+
+  async deleteAllGames(): Promise<void> {
+    try {
+      await AsyncStorage.removeItem(GAMES_KEY);
+    } catch (error) {
+      console.error('Error deleting all games:', error);
+    }
+  },
 };
