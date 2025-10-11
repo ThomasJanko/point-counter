@@ -36,71 +36,80 @@ const ScoreTable: React.FC<ScoreTableProps> = ({
         <Text style={styles.leaderboardTitle}>Scores</Text>
       </View>
 
-      <ScrollView
-        style={styles.scoreTable}
-        horizontal={true}
-        showsHorizontalScrollIndicator={true}
-      >
-        <View style={styles.tableContainer}>
-          {/* Header Row */}
-          <View style={styles.tableHeader}>
-            <Text style={styles.lineNumberHeader}>#</Text>
-            {selectedUsers.map(user => (
-              <View key={user.id} style={styles.playerHeaderCell}>
-                <View
-                  style={[
-                    styles.colorIndicator,
-                    { backgroundColor: user.color },
-                  ]}
-                />
-                <Text style={styles.playerHeaderText}>{user.name}</Text>
-              </View>
-            ))}
-            <Text style={styles.actionHeader}>Action</Text>
-          </View>
-
-          {/* Score Lines */}
-          {Object.entries(scoreLines).map(([lineId, lineScores], lineIndex) => (
-            <View key={lineId} style={styles.tableRow}>
-              <Text style={styles.lineNumberCell}>{lineIndex + 1}</Text>
-              {selectedUsers.map(user => {
-                const inputKey = `${lineId}_${user.id}`;
-                const isFocused = focusedInput === inputKey;
-                return (
-                  <TextInput
-                    key={inputKey}
+      <View style={styles.scrollContainer}>
+        <ScrollView
+          style={styles.scoreTable}
+          horizontal={true}
+          showsHorizontalScrollIndicator={true}
+          nestedScrollEnabled={true}
+        >
+          <View style={styles.tableContainer}>
+            {/* Header Row */}
+            <View style={styles.tableHeader}>
+              <Text style={styles.lineNumberHeader}>#</Text>
+              {selectedUsers.map(user => (
+                <View key={user.id} style={styles.playerHeaderCell}>
+                  <View
                     style={[
-                      styles.scoreInputCell,
-                      isFocused && styles.scoreInputCellFocused,
+                      styles.colorIndicator,
+                      { backgroundColor: user.color },
                     ]}
-                    value={
-                      lineScores[user.id] !== null
-                        ? lineScores[user.id]?.toString() || ''
-                        : ''
-                    }
-                    onChangeText={value =>
-                      onScoreChange(lineId, user.id, value)
-                    }
-                    onFocus={() => onInputFocus(inputKey)}
-                    onBlur={() => onInputBlur(user.id)}
-                    keyboardType="numeric"
-                    placeholder="0"
-                    placeholderTextColor="#666"
-                    selectTextOnFocus={true}
-                    returnKeyType="next"
                   />
-                );
-              })}
-              <TouchableOpacity
-                style={styles.deleteLineButton}
-                onPress={() => onDeleteLine(lineId)}
-              >
-                <Text style={styles.deleteLineButtonText}>🗑️</Text>
-              </TouchableOpacity>
+                  <Text style={styles.playerHeaderText}>{user.name}</Text>
+                </View>
+              ))}
+              <Text style={styles.actionHeader}>Action</Text>
             </View>
-          ))}
-        </View>
-      </ScrollView>
+
+            {/* Score Lines - Scrollable */}
+            <ScrollView
+              style={styles.scrollableRows}
+              nestedScrollEnabled={true}
+              showsVerticalScrollIndicator={true}
+            >
+              {Object.entries(scoreLines).map(([lineId, lineScores], lineIndex) => (
+                <View key={lineId} style={styles.tableRow}>
+                  <Text style={styles.lineNumberCell}>{lineIndex + 1}</Text>
+                  {selectedUsers.map(user => {
+                    const inputKey = `${lineId}_${user.id}`;
+                    const isFocused = focusedInput === inputKey;
+                    return (
+                      <TextInput
+                        key={inputKey}
+                        style={[
+                          styles.scoreInputCell,
+                          isFocused && styles.scoreInputCellFocused,
+                        ]}
+                        value={
+                          lineScores[user.id] !== null
+                            ? lineScores[user.id]?.toString() || ''
+                            : ''
+                        }
+                        onChangeText={value =>
+                          onScoreChange(lineId, user.id, value)
+                        }
+                        onFocus={() => onInputFocus(inputKey)}
+                        onBlur={() => onInputBlur(user.id)}
+                        keyboardType="numeric"
+                        placeholder="0"
+                        placeholderTextColor="#666"
+                        selectTextOnFocus={true}
+                        returnKeyType="next"
+                      />
+                    );
+                  })}
+                  <TouchableOpacity
+                    style={styles.deleteLineButton}
+                    onPress={() => onDeleteLine(lineId)}
+                  >
+                    <Text style={styles.deleteLineButtonText}>🗑️</Text>
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </ScrollView>
+          </View>
+        </ScrollView>
+      </View>
     </View>
   );
 };
@@ -121,15 +130,23 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     textAlign: 'center',
   },
-  scoreTable: {
+  scrollContainer: {
     flex: 1,
     backgroundColor: '#2a2a2a',
     borderRadius: 12,
     borderWidth: 1,
     borderColor: '#3a3a3a',
   },
+  scoreTable: {
+    flex: 1,
+  },
   tableContainer: {
     minWidth: 400,
+    flex: 1,
+  },
+  scrollableRows: {
+    flex: 1,
+    maxHeight: 400,
   },
   tableHeader: {
     flexDirection: 'row',
