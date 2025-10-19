@@ -8,6 +8,10 @@ interface TotalScoresProps {
 }
 
 const TotalScores: React.FC<TotalScoresProps> = ({ selectedUsers, scores }) => {
+  const truncateName = (name: string) => {
+    return name.length > 15 ? name.slice(0, 15) + '...' : name;
+  };
+
   return (
     <View style={styles.totalScoresContainer}>
       <Text style={styles.totalScoresTitle}>Totaux</Text>
@@ -17,7 +21,7 @@ const TotalScores: React.FC<TotalScoresProps> = ({ selectedUsers, scores }) => {
             <View
               style={[styles.colorIndicator, { backgroundColor: user.color }]}
             />
-            <Text style={styles.totalScoreName}>{user.name}</Text>
+            <Text numberOfLines={1} style={styles.totalScoreName}>{truncateName(user.name)}</Text>
             <Text style={styles.totalScoreValue}>{scores[user.id] || 0}</Text>
           </View>
         ))}
@@ -30,7 +34,7 @@ const styles = StyleSheet.create({
   totalScoresContainer: {
     backgroundColor: '#2a2a2a',
     borderRadius: 12,
-    padding: 10,
+    padding: 6,
     margin: 14,
     marginTop: 0,
     borderWidth: 1,
@@ -39,7 +43,7 @@ const styles = StyleSheet.create({
   totalScoresTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#8b5cf6',
+    color: '#fff',
     textAlign: 'center',
     marginBottom: 12,
   },
@@ -55,6 +59,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     padding: 8,
     margin: 4,
+    gap: 4,
     minWidth: 120,
   },
   totalScoreName: {
@@ -62,7 +67,6 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontWeight: '500',
     marginLeft: 8,
-    flex: 1,
   },
   totalScoreValue: {
     fontSize: 16,

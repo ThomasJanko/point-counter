@@ -535,7 +535,8 @@ const styles = StyleSheet.create({
   },
   gameHeader: {
     flexDirection: 'row',
-    padding: 20,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
     alignItems: 'center',
     justifyContent: 'space-between',
   },
