@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import type { NavigationProp } from '@react-navigation/native';
 import { storageService } from '../services/storageService';
 import { User, Game } from '../types';
@@ -42,6 +42,12 @@ const GameScreen = () => {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      loadUsers();
+    }, [])
+  );
 
   const loadUsers = async () => {
     const usersData = await storageService.getUsers();
