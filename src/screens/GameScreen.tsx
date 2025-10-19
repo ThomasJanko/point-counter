@@ -321,14 +321,19 @@ const GameScreen = () => {
             });
             setScores(newResetScores);
 
-            // Reset all score lines
-            const resetLines: {
-              [lineId: string]: { [userId: string]: number };
-            } = {};
-            Object.keys(scoreLines).forEach(lineId => {
-              resetLines[lineId] = { ...newResetScores };
+            // Reset to a single score line with null values
+            const firstLineId = `line_${nextLineId}`;
+            const nullScores: { [userId: string]: number | null } = {};
+            selectedUsers.forEach(user => {
+              nullScores[user.id] = null;
             });
-            setScoreLines(resetLines);
+            setScoreLines({
+              [firstLineId]: nullScores,
+            });
+            setNextLineId(prev => prev + 1);
+
+            // Reset limit reached users
+            setLimitReachedUsers(new Set());
           },
         },
       ],
