@@ -11,26 +11,12 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import { storageService } from '../services/storageService';
 import { User } from '../types';
-
-const COLORS = [
-  '#8b5cf6',
-  '#3b82f6',
-  '#10b981',
-  '#f59e0b',
-  '#ef4444',
-  '#ec4899',
-  '#06b6d4',
-  '#84cc16',
-  '#f97316',
-  '#6366f1',
-  '#14b8a6',
-  '#eab308',
-];
+import ColorPicker from '../components/ColorPicker';
 
 const AddUserScreen = () => {
   const navigation = useNavigation();
   const [name, setName] = useState('');
-  const [selectedColor, setSelectedColor] = useState(COLORS[0]);
+  const [selectedColor, setSelectedColor] = useState('#8b5cf6');
 
   const handleSave = async () => {
     if (!name.trim()) {
@@ -85,31 +71,15 @@ const AddUserScreen = () => {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Choisir une Couleur</Text>
           <Text style={styles.sectionSubtitle}>
-            Cette couleur sera utilisée pour identifier l'utilisateur dans les
-            jeux
+            Glissez sur la palette pour sélectionner une couleur, puis ajustez
+            la teinte avec la barre en dessous
           </Text>
 
-          <View style={styles.colorGrid}>
-            {COLORS.map(color => (
-              <TouchableOpacity
-                key={color}
-                style={[
-                  styles.colorOption,
-                  { backgroundColor: color },
-                  selectedColor === color && styles.selectedColor,
-                ]}
-                onPress={() => setSelectedColor(color)}
-              >
-                {selectedColor === color && (
-                  <Text style={styles.checkmark}>✓</Text>
-                )}
-              </TouchableOpacity>
-            ))}
-          </View>
+          <ColorPicker color={selectedColor} onColorChange={setSelectedColor} />
         </View>
 
         <View style={styles.previewSection}>
-          <Text style={styles.sectionTitle}>Aperçu</Text>
+          {/* <Text style={styles.sectionTitle}>Aperçu</Text> */}
           <View style={styles.previewCard}>
             <View style={styles.previewUserInfo}>
               <View
@@ -154,7 +124,7 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   section: {
-    marginBottom: 32,
+    marginBottom: 10,
   },
   sectionTitle: {
     fontSize: 20,
@@ -184,30 +154,6 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     borderWidth: 1,
     borderColor: '#3a3a3a',
-  },
-  colorGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-  },
-  colorOption: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    marginBottom: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: 'transparent',
-  },
-  selectedColor: {
-    borderColor: '#ffffff',
-    transform: [{ scale: 1.1 }],
-  },
-  checkmark: {
-    color: '#ffffff',
-    fontSize: 20,
-    fontWeight: 'bold',
   },
   previewSection: {
     marginBottom: 32,
