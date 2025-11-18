@@ -5,9 +5,10 @@ import { User } from '../types';
 interface TotalScoresProps {
   selectedUsers: User[];
   scores: { [userId: string]: number };
+  focusedInput?: string | null;
 }
 
-const TotalScores: React.FC<TotalScoresProps> = ({ selectedUsers, scores }) => {
+const TotalScores: React.FC<TotalScoresProps> = ({ selectedUsers, scores, focusedInput }) => {
   const truncateName = (name: string) => {
     return name.length > 15 ? name.slice(0, 15) + '...' : name;
   };

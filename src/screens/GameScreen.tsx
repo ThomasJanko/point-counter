@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import type { NavigationProp } from '@react-navigation/native';
@@ -35,6 +35,40 @@ const GameScreen = () => {
     new Set(),
   );
 
+  const autoSaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const autoSaveGame = async () => {
+    // Only auto-save if there's a game title or if it's an existing game
+    if (!gameTitle.trim() && !currentGameId) {
+      return;
+    }
+
+    try {
+      const game = {
+        id: currentGameId || Date.now().toString(),
+        name: gameTitle.trim() || `Partie ${new Date().toLocaleDateString()}`,
+        players: selectedUsers,
+        scores,
+        scoreLines,
+        gameGoal,
+        scoreLimit,
+        createdAt: new Date(),
+      };
+
+      if (currentGameId) {
+        // Update existing game
+        await storageService.updateGame(game);
+      } else {
+        // Save new game
+        await storageService.saveGame(game);
+        setCurrentGameId(game.id);
+      }
+    } catch (error) {
+      console.error('Error auto-saving game:', error);
+      // Silent fail for auto-save
+    }
+  };
+
   useEffect(() => {
     loadUsers();
     if (savedGame) {
@@ -43,10 +77,53 @@ const GameScreen = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Auto-save when scores or selectedUsers change (with debouncing)
+  useEffect(() => {
+    // Clear existing timeout
+    if (autoSaveTimeoutRef.current) {
+      clearTimeout(autoSaveTimeoutRef.current);
+    }
+
+    // Only auto-save if game has started (has scoreLines or selectedUsers)
+    if (Object.keys(scoreLines).length === 0 && selectedUsers.length === 0) {
+      return;
+    }
+
+    // Debounce auto-save by 1 second
+    autoSaveTimeoutRef.current = setTimeout(() => {
+      autoSaveGame();
+    }, 1000);
+
+    // Cleanup timeout on unmount
+    return () => {
+      if (autoSaveTimeoutRef.current) {
+        clearTimeout(autoSaveTimeoutRef.current);
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scoreLines, selectedUsers, scores, gameTitle, currentGameId]);
+
   useFocusEffect(
     React.useCallback(() => {
-      loadUsers();
-    }, [])
+      const previousUsersCount = users.length;
+      loadUsers().then(() => {
+        // Auto-select newly added user if one was just added
+        storageService.getUsers().then(updatedUsers => {
+          if (updatedUsers.length > previousUsersCount) {
+            // Find the newest user (highest ID, which is timestamp)
+            const sortedUsers = [...updatedUsers].sort(
+              (a, b) => Number.parseInt(b.id, 10) - Number.parseInt(a.id, 10),
+            );
+            const newUser = sortedUsers[0];
+            // Auto-select if not already selected
+            if (newUser && !selectedUsers.some(u => u.id === newUser.id)) {
+              handleUserToggle(newUser);
+            }
+          }
+        });
+      });
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [users.length, selectedUsers])
   );
 
   const loadUsers = async () => {
@@ -496,7 +573,7 @@ const GameScreen = () => {
         onDeleteLine={deleteScoreLine}
       />
 
-      <TotalScores selectedUsers={selectedUsers} scores={scores} />
+      <TotalScores selectedUsers={selectedUsers} scores={scores} focusedInput={focusedInput} />
 
       <UserSelectionModal
         visible={showUserSelection}

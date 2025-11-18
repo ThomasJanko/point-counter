@@ -105,6 +105,8 @@ const UserSelectionModal: React.FC<UserSelectionModalProps> = ({
             keyExtractor={item => item.id}
             renderItem={renderUserSelection}
             contentContainerStyle={styles.modalUserList}
+            nestedScrollEnabled={true}
+            scrollEnabled={true}
             ListEmptyComponent={
               <View style={styles.emptyState}>
                 <Text style={styles.emptyStateText}>
@@ -190,7 +192,8 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   modalUserList: {
-    maxHeight: 300,
+    paddingBottom: 10,
+    flexGrow: 1,
   },
   emptyState: {
     padding: 40,

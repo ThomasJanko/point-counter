@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import {
   View,
   Text,
@@ -24,12 +24,48 @@ const ScoreTable: React.FC<ScoreTableProps> = ({
   selectedUsers,
   scoreLines,
   focusedInput,
-  scoreLimit,
+  scoreLimit: _scoreLimit,
   onScoreChange,
   onInputFocus,
   onInputBlur,
   onDeleteLine,
 }) => {
+  const inputRefs = useRef<{ [key: string]: TextInput | null }>({});
+
+  const handleScoreChange = (lineId: string, userId: string, value: string) => {
+    // Remove leading zeros (e.g., "065" -> "65", "034" -> "34")
+    // But keep "0" if the value is just "0"
+    let cleanedValue = value;
+    if (cleanedValue.length > 1 && cleanedValue.startsWith('0')) {
+      cleanedValue = cleanedValue.replace(/^0+/, '') || '0';
+    }
+    onScoreChange(lineId, userId, cleanedValue);
+  };
+
+  const focusNextInput = (currentLineId: string, currentUserId: string) => {
+    const lineEntries = Object.entries(scoreLines);
+    const currentLineIndex = lineEntries.findIndex(([id]) => id === currentLineId);
+    const currentUserIndex = selectedUsers.findIndex(u => u.id === currentUserId);
+
+    // Try next user in same row
+    if (currentUserIndex < selectedUsers.length - 1) {
+      const nextUserId = selectedUsers[currentUserIndex + 1].id;
+      const nextInputKey = `${currentLineId}_${nextUserId}`;
+      onInputFocus(nextInputKey);
+      inputRefs.current[nextInputKey]?.focus();
+      return;
+    }
+
+    // Try first user in next row
+    if (currentLineIndex < lineEntries.length - 1) {
+      const nextLineId = lineEntries[currentLineIndex + 1][0];
+      const firstUserId = selectedUsers[0].id;
+      const nextInputKey = `${nextLineId}_${firstUserId}`;
+      onInputFocus(nextInputKey);
+      inputRefs.current[nextInputKey]?.focus();
+    }
+  };
+
   return (
     <View style={styles.scoreTableContainer}>
       <View style={styles.tableHeaderContainer}>
@@ -58,7 +94,7 @@ const ScoreTable: React.FC<ScoreTableProps> = ({
                   <Text style={styles.playerHeaderText}>{user.name}</Text>
                 </View>
               ))}
-              <Text style={styles.actionHeader}>Action</Text>
+              <View style={styles.actionHeader} />
             </View>
 
             {/* Score Lines - Scrollable */}
@@ -75,26 +111,31 @@ const ScoreTable: React.FC<ScoreTableProps> = ({
                     const isFocused = focusedInput === inputKey;
                     return (
                       <TextInput
+                        ref={ref => {
+                          inputRefs.current[inputKey] = ref;
+                        }}
                         key={inputKey}
                         style={[
                           styles.scoreInputCell,
                           isFocused && styles.scoreInputCellFocused,
                         ]}
                         value={
-                          lineScores[user.id] !== null
-                            ? lineScores[user.id]?.toString() || ''
-                            : ''
+                          lineScores[user.id] == null
+                            ? ''
+                            : lineScores[user.id]?.toString() || ''
                         }
                         onChangeText={value =>
-                          onScoreChange(lineId, user.id, value)
+                          handleScoreChange(lineId, user.id, value)
                         }
                         onFocus={() => onInputFocus(inputKey)}
                         onBlur={() => onInputBlur(user.id)}
+                        onSubmitEditing={() => focusNextInput(lineId, user.id)}
                         keyboardType="numeric"
                         placeholder="0"
                         placeholderTextColor="#666"
                         selectTextOnFocus={true}
                         returnKeyType="next"
+                        textAlignVertical="center"
                       />
                     );
                   })}
@@ -102,7 +143,9 @@ const ScoreTable: React.FC<ScoreTableProps> = ({
                     style={styles.deleteLineButton}
                     onPress={() => onDeleteLine(lineId)}
                   >
-                    <Text style={styles.deleteLineButtonText}>🗑️</Text>
+                    <View style={styles.minusIconContainer}>
+                      <View style={styles.minusIcon} />
+                    </View>
                   </TouchableOpacity>
                 </View>
               ))}
@@ -118,14 +161,14 @@ const styles = StyleSheet.create({
   scoreTableContainer: {
     marginTop: -20,
     flex: 1,
-    padding: 10,
-    paddingTop: 5,
+    padding: 6,
+    paddingTop: 4,
   },
   tableHeaderContainer: {
-    marginBottom: 8,
+    marginBottom: 4,
   },
   leaderboardTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: 'bold',
     color: '#ffffff',
     textAlign: 'center',
@@ -141,7 +184,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   tableContainer: {
-    minWidth: 400,
+    minWidth: '100%',
     flex: 1,
   },
   scrollableRows: {
@@ -151,67 +194,70 @@ const styles = StyleSheet.create({
   tableHeader: {
     flexDirection: 'row',
     backgroundColor: '#3a3a3a',
-    paddingVertical: 12,
-    paddingHorizontal: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 4,
     borderTopLeftRadius: 12,
     borderTopRightRadius: 12,
+    width: '100%',
   },
   lineNumberHeader: {
-    width: 40,
-    fontSize: 14,
+    width: 30,
+    fontSize: 12,
     fontWeight: 'bold',
     color: '#8b5cf6',
     textAlign: 'center',
   },
   playerHeaderCell: {
-    width: 100,
+    width: 80,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginHorizontal: 4,
+    marginHorizontal: 2,
   },
   playerHeaderText: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: 'bold',
     color: '#8b5cf6',
-    marginLeft: 4,
+    marginLeft: 3,
     textAlign: 'center',
   },
   actionHeader: {
-    width: 50,
-    fontSize: 14,
+    width: 35,
+    fontSize: 12,
     fontWeight: 'bold',
     color: '#8b5cf6',
     textAlign: 'center',
   },
   tableRow: {
     flexDirection: 'row',
-    paddingVertical: 12,
-    paddingHorizontal: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 4,
     borderBottomWidth: 1,
     borderBottomColor: '#3a3a3a',
     alignItems: 'center',
-    minHeight: 50,
+    minHeight: 40,
   },
   lineNumberCell: {
-    width: 40,
-    fontSize: 14,
+    width: 30,
+    fontSize: 12,
     fontWeight: 'bold',
     color: '#8b5cf6',
     textAlign: 'center',
   },
   scoreInputCell: {
-    width: 100,
+    width: 80,
+    height: 34,
     backgroundColor: '#2a2a2a',
-    borderRadius: 8,
+    borderRadius: 6,
     borderWidth: 2,
     borderColor: '#4a4a4a',
     textAlign: 'center',
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
     color: '#ffffff',
-    marginHorizontal: 4,
-    paddingHorizontal: 8,
+    marginHorizontal: 2,
+    paddingHorizontal: 4,
+    paddingVertical: 0,
     overflow: 'hidden',
   },
   scoreInputCellFocused: {
@@ -224,18 +270,30 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   deleteLineButton: {
-    width: 50,
-    height: 32,
+    width: 35,
+    height: 34,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 10,
+  },
+  minusIconContainer: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#ef4444',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  deleteLineButtonText: {
-    fontSize: 16,
+  minusIcon: {
+    width: 10,
+    height: 2,
+    backgroundColor: '#ffffff',
+    borderRadius: 1,
   },
   colorIndicator: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
   },
 });
 
