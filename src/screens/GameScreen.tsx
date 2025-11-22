@@ -571,6 +571,7 @@ const GameScreen = () => {
           checkScoreLimit(userId);
         }}
         onDeleteLine={deleteScoreLine}
+        onUsersReorder={setSelectedUsers}
       />
 
       <TotalScores selectedUsers={selectedUsers} scores={scores} focusedInput={focusedInput} />
