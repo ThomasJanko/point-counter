@@ -222,10 +222,6 @@ const ScoreTable: React.FC<ScoreTableProps> = ({
 
   return (
     <View style={styles.scoreTableContainer}>
-      <View style={styles.tableHeaderContainer}>
-        <Text style={styles.leaderboardTitle}>Scores</Text>
-      </View>
-
       <View style={styles.scrollContainer}>
         <ScrollView
           style={styles.scoreTable}

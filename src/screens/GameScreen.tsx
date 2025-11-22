@@ -1,6 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
-import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
+import {
+  useNavigation,
+  useRoute,
+  useFocusEffect,
+} from '@react-navigation/native';
 import type { NavigationProp } from '@react-navigation/native';
 import { storageService } from '../services/storageService';
 import { User, Game } from '../types';
@@ -77,6 +81,13 @@ const GameScreen = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Update navigation header title when gameTitle changes
+  useEffect(() => {
+    navigation.setOptions({
+      title: gameTitle || 'Nouvelle Partie',
+    });
+  }, [gameTitle, navigation]);
+
   // Auto-save when scores or selectedUsers change (with debouncing)
   useEffect(() => {
     // Clear existing timeout
@@ -123,7 +134,7 @@ const GameScreen = () => {
         });
       });
       // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [users.length, selectedUsers])
+    }, [users.length, selectedUsers]),
   );
 
   const loadUsers = async () => {
@@ -541,16 +552,14 @@ const GameScreen = () => {
   return (
     <View style={styles.container}>
       <View style={styles.gameHeader}>
-        <View style={styles.gameHeaderLeft}>
-          <Text style={styles.gameTitleDisplay}>
-            {gameTitle || 'Partie sans titre'}
-          </Text>
-          {scoreLimit && (
-            <Text style={styles.scoreLimitIndicator}>
-              Limite: {scoreLimit} pts
-            </Text>
-          )}
+        <View style={styles.tableHeaderContainer}>
+          <Text style={styles.leaderboardTitle}>Scores</Text>
         </View>
+        {/* {scoreLimit && (
+          <Text style={styles.scoreLimitIndicator}>
+            Limite: {scoreLimit} pts
+          </Text>
+        )} */}
         <TouchableOpacity
           style={styles.menuButton}
           onPress={() => setShowMenu(true)}
@@ -574,7 +583,11 @@ const GameScreen = () => {
         onUsersReorder={setSelectedUsers}
       />
 
-      <TotalScores selectedUsers={selectedUsers} scores={scores} focusedInput={focusedInput} />
+      <TotalScores
+        selectedUsers={selectedUsers}
+        scores={scores}
+        focusedInput={focusedInput}
+      />
 
       <UserSelectionModal
         visible={showUserSelection}
@@ -621,23 +634,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     paddingHorizontal: 20,
     paddingVertical: 10,
+    marginBottom: 20,
     alignItems: 'center',
     justifyContent: 'space-between',
-  },
-  gameHeaderLeft: {
-    flex: 1,
-    marginRight: 12,
-  },
-  gameTitleDisplay: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#ffffff',
-    marginBottom: 2,
   },
   scoreLimitIndicator: {
     fontSize: 12,
     color: '#8b5cf6',
     fontWeight: '500',
+    marginRight: 12,
   },
   menuButton: {
     width: 40,
@@ -654,6 +659,15 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 20,
     fontWeight: 'bold',
+  },
+  tableHeaderContainer: {
+    marginBottom: 4,
+  },
+  leaderboardTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#ffffff',
+    textAlign: 'center',
   },
 });
 
