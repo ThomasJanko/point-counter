@@ -103,7 +103,7 @@ const ScoreTable: React.FC<ScoreTableProps> = ({
         dragOffsetAnimated.setValue(translationX);
 
         // Calculate which column we're hovering over
-        const columnWidth = 84; // width (80) + margin (4)
+        const columnWidth = 94; // width (80) + margin (8 * 2)
         const currentDraggedIndex = draggedIndexRef.current;
         if (currentDraggedIndex === null) return;
 
@@ -145,14 +145,14 @@ const ScoreTable: React.FC<ScoreTableProps> = ({
                 if (currentDraggedIdx > newTargetIndex) {
                   // Shift columns between target and dragged position to the right
                   if (idx >= newTargetIndex && idx < currentDraggedIdx) {
-                    newShift = 84; // Shift right
+                    newShift = 94; // Shift right (width 80 + margin 16)
                   }
                 }
                 // If dragging right (to a higher index)
                 else if (currentDraggedIdx < newTargetIndex) {
                   // Shift columns between dragged and target position to the left
                   if (idx > currentDraggedIdx && idx <= newTargetIndex) {
-                    newShift = -84; // Shift left
+                    newShift = -94; // Shift left (width 80 + margin 16)
                   }
                 }
 
@@ -386,15 +386,6 @@ const styles = StyleSheet.create({
     padding: 6,
     paddingTop: 4,
   },
-  tableHeaderContainer: {
-    marginBottom: 4,
-  },
-  leaderboardTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#ffffff',
-    textAlign: 'center',
-  },
   scrollContainer: {
     flex: 1,
     backgroundColor: '#2a2a2a',
@@ -417,10 +408,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     backgroundColor: '#3a3a3a',
     paddingVertical: 6,
-    paddingHorizontal: 4,
+    paddingHorizontal: 8,
     borderTopLeftRadius: 12,
     borderTopRightRadius: 12,
     width: '100%',
+    alignItems: 'center',
   },
   lineNumberHeader: {
     width: 30,
@@ -434,7 +426,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginHorizontal: 2,
+    marginHorizontal: 0,
     position: 'relative',
   },
   playerHeaderCellDragging: {
@@ -507,7 +499,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
     color: '#ffffff',
-    marginHorizontal: 2,
+    marginHorizontal: 8,
     paddingHorizontal: 4,
     paddingVertical: 0,
     overflow: 'hidden',
@@ -550,7 +542,7 @@ const styles = StyleSheet.create({
   headerCellWrapper: {
     position: 'relative',
     width: 80,
-    marginHorizontal: 2,
+    marginHorizontal: 6,
   },
   dropPlaceholderAbsolute: {
     position: 'absolute',
