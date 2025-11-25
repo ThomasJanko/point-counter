@@ -90,10 +90,7 @@ const UserSelectionModal: React.FC<UserSelectionModalProps> = ({
               </View>
               <TouchableOpacity
                 style={styles.modalAddUserButton}
-                onPress={() => {
-                  onClose();
-                  onAddUser();
-                }}
+                onPress={onAddUser}
               >
                 <Text style={styles.modalAddUserButtonText}>+ Nouveau</Text>
               </TouchableOpacity>

@@ -40,6 +40,8 @@ const GameScreen = () => {
   );
 
   const autoSaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const shouldKeepModalOpenRef = useRef(false);
+  const previousUsersCountRef = useRef(0);
 
   const autoSaveGame = async () => {
     // Only auto-save if there's a game title or if it's an existing game
@@ -74,7 +76,10 @@ const GameScreen = () => {
   };
 
   useEffect(() => {
-    loadUsers();
+    loadUsers().then(usersData => {
+      // Initialize the previous count after first load
+      previousUsersCountRef.current = usersData.length;
+    });
     if (savedGame) {
       loadSavedGame(savedGame);
     }
@@ -116,11 +121,11 @@ const GameScreen = () => {
 
   useFocusEffect(
     React.useCallback(() => {
-      const previousUsersCount = users.length;
-      loadUsers().then(() => {
-        // Auto-select newly added user if one was just added
-        storageService.getUsers().then(updatedUsers => {
-          if (updatedUsers.length > previousUsersCount) {
+      const previousCount = previousUsersCountRef.current;
+      loadUsers().then(updatedUsers => {
+        // If we should keep modal open (coming back from AddUser), check for new user
+        if (shouldKeepModalOpenRef.current) {
+          if (updatedUsers.length > previousCount) {
             // Find the newest user (highest ID, which is timestamp)
             const sortedUsers = [...updatedUsers].sort(
               (a, b) => Number.parseInt(b.id, 10) - Number.parseInt(a.id, 10),
@@ -131,7 +136,12 @@ const GameScreen = () => {
               handleUserToggle(newUser);
             }
           }
-        });
+          // Reopen the modal and reset the flag
+          setShowUserSelection(true);
+          shouldKeepModalOpenRef.current = false;
+        }
+        // Update the previous count after loading
+        previousUsersCountRef.current = updatedUsers.length;
       });
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [users.length, selectedUsers]),
@@ -140,6 +150,7 @@ const GameScreen = () => {
   const loadUsers = async () => {
     const usersData = await storageService.getUsers();
     setUsers(usersData);
+    return usersData;
   };
 
   const loadSavedGame = (game: Game) => {
@@ -594,10 +605,18 @@ const GameScreen = () => {
         users={users}
         selectedUsers={selectedUsers}
         onUserToggle={handleUserToggle}
-        onClose={() => setShowUserSelection(false)}
-        onConfirm={() => setShowUserSelection(false)}
-        onAddUser={() => {
+        onClose={() => {
           setShowUserSelection(false);
+          shouldKeepModalOpenRef.current = false;
+        }}
+        onConfirm={() => {
+          setShowUserSelection(false);
+          shouldKeepModalOpenRef.current = false;
+        }}
+        onAddUser={() => {
+          // Don't close modal, just navigate - we'll reopen it when returning
+          shouldKeepModalOpenRef.current = true;
+          previousUsersCountRef.current = users.length;
           navigation.navigate('AddUser');
         }}
       />
