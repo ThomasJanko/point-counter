@@ -560,9 +560,6 @@ const styles = StyleSheet.create({
   },
   scoreInputCellFocused: {
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 4,
   },
   deleteLineButton: {
     width: 35,

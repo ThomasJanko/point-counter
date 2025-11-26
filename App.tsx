@@ -6,7 +6,8 @@
 import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
-import { StatusBar } from 'react-native';
+import type { NavigationProp } from '@react-navigation/native';
+import { StatusBar, TouchableOpacity, Text, StyleSheet } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 // Theme
@@ -18,8 +19,35 @@ import UserManagementScreen from './src/screens/UserManagementScreen';
 import AddUserScreen from './src/screens/AddUserScreen';
 import EditUserScreen from './src/screens/EditUserScreen';
 import GameScreen from './src/screens/GameScreen';
+import SettingsScreen from './src/screens/SettingsScreen';
 
 const Stack = createStackNavigator();
+
+// Header right component for Settings button
+const SettingsHeaderButton = ({
+  navigation,
+}: {
+  navigation: NavigationProp<any>;
+}) => {
+  return (
+    <TouchableOpacity
+      onPress={() => navigation.navigate('Settings')}
+      style={headerStyles.button}
+    >
+      <Text style={headerStyles.buttonText}>⚙️</Text>
+    </TouchableOpacity>
+  );
+};
+
+const headerStyles = StyleSheet.create({
+  button: {
+    marginRight: 16,
+    padding: 8,
+  },
+  buttonText: {
+    fontSize: 24,
+  },
+});
 
 function AppNavigator() {
   const { theme } = useTheme();
@@ -50,7 +78,10 @@ function AppNavigator() {
         <Stack.Screen
           name="Home"
           component={HomeScreen}
-          options={{ title: 'Compteur de Points' }}
+          options={({ navigation }) => ({
+            title: 'Compteur de Points',
+            headerRight: () => <SettingsHeaderButton navigation={navigation} />,
+          })}
         />
         <Stack.Screen
           name="UserManagement"
@@ -70,7 +101,15 @@ function AppNavigator() {
         <Stack.Screen
           name="Game"
           component={GameScreen}
-          options={{ title: 'Nouvelle Partie' }}
+          options={({ navigation }) => ({
+            title: 'Nouvelle Partie',
+            headerRight: () => <SettingsHeaderButton navigation={navigation} />,
+          })}
+        />
+        <Stack.Screen
+          name="Settings"
+          component={SettingsScreen}
+          options={{ title: 'Paramètres' }}
         />
       </Stack.Navigator>
     </NavigationContainer>

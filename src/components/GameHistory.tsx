@@ -9,6 +9,7 @@ import {
   ScrollView,
 } from 'react-native';
 import { Game } from '../types';
+import { useTheme } from '../theme';
 import GameCard from './GameCard';
 
 interface GameHistoryProps {
@@ -24,6 +25,7 @@ const GameHistory: React.FC<GameHistoryProps> = ({
   onDeleteGame,
   onDeleteAllGames,
 }) => {
+  const { theme } = useTheme();
   const [searchQuery, setSearchQuery] = useState('');
 
   const filteredGames = games.filter(game => {
@@ -58,15 +60,32 @@ const GameHistory: React.FC<GameHistoryProps> = ({
   };
 
   return (
-    <View style={styles.historyContainer}>
+    <View
+      style={[
+        styles.historyContainer,
+        {
+          backgroundColor: theme.colors.card,
+          borderColor: theme.colors.border,
+        },
+      ]}
+    >
       <View style={styles.header}>
-        <Text style={styles.historyTitle}>Historique</Text>
+        <Text style={[styles.historyTitle, { color: theme.colors.text }]}>
+          Historique
+        </Text>
         {games.length > 0 && (
           <TouchableOpacity
-            style={styles.deleteAllButton}
+            style={[
+              styles.deleteAllButton,
+              { backgroundColor: theme.colors.error },
+            ]}
             onPress={handleDeleteAll}
           >
-            <Text style={styles.deleteAllButtonText}>🗑️</Text>
+            <Text
+              style={[styles.deleteAllButtonText, { color: theme.colors.text }]}
+            >
+              🗑️
+            </Text>
           </TouchableOpacity>
         )}
       </View>
@@ -74,9 +93,16 @@ const GameHistory: React.FC<GameHistoryProps> = ({
       {games.length > 0 && (
         <View style={styles.searchContainer}>
           <TextInput
-            style={styles.searchInput}
+            style={[
+              styles.searchInput,
+              {
+                backgroundColor: theme.colors.background,
+                borderColor: theme.colors.border,
+                color: theme.colors.text,
+              },
+            ]}
             placeholder="Rechercher par titre ou joueur..."
-            placeholderTextColor="#666"
+            placeholderTextColor={theme.colors.placeholder}
             value={searchQuery}
             onChangeText={setSearchQuery}
           />
@@ -86,7 +112,12 @@ const GameHistory: React.FC<GameHistoryProps> = ({
       {filteredGames.length === 0 && games.length > 0 && (
         <View style={styles.emptySearch}>
           <Text style={styles.emptySearchIcon}>🔍</Text>
-          <Text style={styles.emptySearchText}>
+          <Text
+            style={[
+              styles.emptySearchText,
+              { color: theme.colors.textSecondary },
+            ]}
+          >
             Aucune partie trouvée pour "{searchQuery}"
           </Text>
         </View>
@@ -94,7 +125,12 @@ const GameHistory: React.FC<GameHistoryProps> = ({
       {games.length === 0 && (
         <View style={styles.emptyHistory}>
           <Text style={styles.emptyHistoryIcon}>📋</Text>
-          <Text style={styles.emptyHistoryText}>
+          <Text
+            style={[
+              styles.emptyHistoryText,
+              { color: theme.colors.textSecondary },
+            ]}
+          >
             Aucun historique disponible
           </Text>
         </View>
@@ -121,11 +157,9 @@ const GameHistory: React.FC<GameHistoryProps> = ({
 
 const styles = StyleSheet.create({
   historyContainer: {
-    backgroundColor: '#2a2a2a',
     borderRadius: 16,
     padding: 20,
     borderWidth: 1,
-    borderColor: '#3a3a3a',
   },
   header: {
     flexDirection: 'row',
@@ -136,12 +170,10 @@ const styles = StyleSheet.create({
   historyTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#ffffff',
     flex: 1,
     textAlign: 'center',
   },
   deleteAllButton: {
-    backgroundColor: '#dc2626',
     borderRadius: 8,
     padding: 8,
     minWidth: 40,
@@ -150,19 +182,15 @@ const styles = StyleSheet.create({
   },
   deleteAllButtonText: {
     fontSize: 16,
-    color: '#ffffff',
   },
   searchContainer: {
     marginBottom: 16,
   },
   searchInput: {
-    backgroundColor: '#1a1a1a',
     borderRadius: 8,
     padding: 12,
-    color: '#ffffff',
     fontSize: 16,
     borderWidth: 1,
-    borderColor: '#3a3a3a',
   },
   emptyHistory: {
     alignItems: 'center',
@@ -175,7 +203,6 @@ const styles = StyleSheet.create({
   },
   emptyHistoryText: {
     fontSize: 16,
-    color: '#a0a0a0',
     textAlign: 'center',
   },
   emptySearch: {
@@ -189,7 +216,6 @@ const styles = StyleSheet.create({
   },
   emptySearchText: {
     fontSize: 16,
-    color: '#a0a0a0',
     textAlign: 'center',
   },
   gamesScrollView: {

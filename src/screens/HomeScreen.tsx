@@ -96,10 +96,16 @@ const HomeScreen = () => {
   };
 
   return (
-    <ScrollView style={[styles.container, { backgroundColor: theme.colors.background }]}>
+    <ScrollView
+      style={[styles.container, { backgroundColor: theme.colors.background }]}
+    >
       <View style={styles.content}>
-        <Text style={[styles.title, { color: theme.colors.primary }]}>Compteur de Points</Text>
-        <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>Suivez les points dans vos jeux</Text>
+        <Text style={[styles.title, { color: theme.colors.primary }]}>
+          Compteur de Points
+        </Text>
+        <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>
+          Suivez les points dans vos jeux
+        </Text>
 
         <StatsCard userCount={userCount} />
 
