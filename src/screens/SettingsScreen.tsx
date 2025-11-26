@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -8,9 +8,12 @@ import {
   Switch,
 } from 'react-native';
 import { useTheme } from '../theme';
+import ColorPicker from '../components/ColorPicker';
 
 const SettingsScreen = () => {
-  const { theme, mode, setMode, toggleMode } = useTheme();
+  const { theme, mode, setMode, toggleMode, primaryColor, setPrimaryColor } =
+    useTheme();
+  const [showColorPicker, setShowColorPicker] = useState(false);
 
   return (
     <ScrollView
@@ -116,6 +119,67 @@ const SettingsScreen = () => {
 
         <View style={styles.section}>
           <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
+            Couleur Principale
+          </Text>
+
+          <View
+            style={[
+              styles.settingItem,
+              {
+                backgroundColor: theme.colors.card,
+                borderColor: theme.colors.border,
+              },
+            ]}
+          >
+            <View style={styles.settingLeft}>
+              <Text style={[styles.settingLabel, { color: theme.colors.text }]}>
+                Couleur du Thème
+              </Text>
+              <Text
+                style={[
+                  styles.settingDescription,
+                  { color: theme.colors.textSecondary },
+                ]}
+              >
+                Choisissez la couleur principale de l'application
+              </Text>
+            </View>
+            <TouchableOpacity
+              style={[
+                styles.colorPreviewButton,
+                {
+                  backgroundColor: primaryColor,
+                  borderColor: theme.colors.border,
+                },
+              ]}
+              onPress={() => setShowColorPicker(!showColorPicker)}
+            >
+              <View
+                style={[styles.colorPreview, { backgroundColor: primaryColor }]}
+              />
+            </TouchableOpacity>
+          </View>
+
+          {showColorPicker && (
+            <View
+              style={[
+                styles.colorPickerContainer,
+                {
+                  backgroundColor: theme.colors.card,
+                  borderColor: theme.colors.border,
+                },
+              ]}
+            >
+              <ColorPicker
+                color={primaryColor}
+                onColorChange={setPrimaryColor}
+              />
+            </View>
+          )}
+        </View>
+
+        <View style={styles.section}>
+          <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
             Informations
           </Text>
           <View
@@ -205,6 +269,26 @@ const styles = StyleSheet.create({
   infoText: {
     fontSize: 14,
     marginBottom: 8,
+  },
+  colorPreviewButton: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    borderWidth: 2,
+    justifyContent: 'center',
+    alignItems: 'center',
+    overflow: 'hidden',
+  },
+  colorPreview: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 25,
+  },
+  colorPickerContainer: {
+    marginTop: 16,
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
   },
 });
 

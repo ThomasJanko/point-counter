@@ -8,6 +8,7 @@ import {
   TextInput,
 } from 'react-native';
 import { User } from '../types';
+import { useTheme } from '../theme';
 
 interface UserSelectionProps {
   users: User[];
@@ -36,6 +37,7 @@ const UserSelection: React.FC<UserSelectionProps> = ({
   onStartGame,
   onAddUser,
 }) => {
+  const { theme } = useTheme();
   const [searchQuery, setSearchQuery] = useState('');
 
   // Filter users based on search query
@@ -55,7 +57,15 @@ const UserSelection: React.FC<UserSelectionProps> = ({
         key={item.id}
         style={[
           styles.userSelectionItem,
-          isSelected && styles.selectedUserItem,
+          {
+            backgroundColor: theme.colors.card,
+            borderColor: isSelected
+              ? theme.colors.primary
+              : theme.colors.border,
+          },
+          isSelected && {
+            backgroundColor: theme.colors.primaryBackground,
+          },
         ]}
         onPress={() => onUserToggle(item)}
         activeOpacity={0.7}
@@ -63,48 +73,81 @@ const UserSelection: React.FC<UserSelectionProps> = ({
         <View
           style={[styles.colorIndicator, { backgroundColor: item.color }]}
         />
-        <Text style={styles.userSelectionName}>{item.name}</Text>
-        {isSelected && <Text style={styles.checkmark}>✓</Text>}
+        <Text style={[styles.userSelectionName, { color: theme.colors.text }]}>
+          {item.name}
+        </Text>
+        {isSelected && (
+          <Text style={[styles.checkmark, { color: theme.colors.primary }]}>
+            ✓
+          </Text>
+        )}
       </TouchableOpacity>
     );
   };
 
   return (
-    <View style={styles.container}>
+    <View
+      style={[styles.container, { backgroundColor: theme.colors.background }]}
+    >
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Nouvelle Partie</Text>
-        <Text style={styles.headerSubtitle}>
+        <Text style={[styles.headerTitle, { color: theme.colors.text }]}>
+          Nouvelle Partie
+        </Text>
+        <Text
+          style={[styles.headerSubtitle, { color: theme.colors.textSecondary }]}
+        >
           Choisissez au moins 2 joueurs pour commencer la partie
         </Text>
       </View>
 
       <View style={styles.gameTitleContainer}>
-        <Text style={styles.gameTitleLabel}>Titre de la Partie</Text>
+        <Text style={[styles.gameTitleLabel, { color: theme.colors.text }]}>
+          Titre de la Partie
+        </Text>
         <TextInput
-          style={styles.gameTitleInput}
+          style={[
+            styles.gameTitleInput,
+            {
+              backgroundColor: theme.colors.card,
+              borderColor: theme.colors.border,
+              color: theme.colors.text,
+            },
+          ]}
           value={gameTitle}
           onChangeText={onGameTitleChange}
           placeholder="Entrez le titre de la partie"
-          placeholderTextColor="#666"
+          placeholderTextColor={theme.colors.placeholder}
         />
       </View>
 
       <View style={styles.gameConfigContainer}>
-        <Text style={styles.gameConfigLabel}>Configuration de la Partie</Text>
+        <Text style={[styles.gameConfigLabel, { color: theme.colors.text }]}>
+          Configuration de la Partie
+        </Text>
 
         <View style={styles.gameGoalContainer}>
-          <Text style={styles.gameGoalLabel}>Objectif:</Text>
+          <Text style={[styles.gameGoalLabel, { color: theme.colors.text }]}>
+            Objectif:
+          </Text>
           <View style={styles.gameGoalButtons}>
             <TouchableOpacity
               style={[
                 styles.gameGoalButton,
-                gameGoal === 'highest' && styles.gameGoalButtonSelected,
+                {
+                  backgroundColor: theme.colors.card,
+                  borderColor: theme.colors.border,
+                },
+                gameGoal === 'highest' && {
+                  backgroundColor: theme.colors.primary,
+                  borderColor: theme.colors.primary,
+                },
               ]}
               onPress={() => onGameGoalChange('highest')}
             >
               <Text
                 style={[
                   styles.gameGoalButtonText,
+                  { color: theme.colors.text },
                   gameGoal === 'highest' && styles.gameGoalButtonTextSelected,
                 ]}
               >
@@ -114,13 +157,21 @@ const UserSelection: React.FC<UserSelectionProps> = ({
             <TouchableOpacity
               style={[
                 styles.gameGoalButton,
-                gameGoal === 'lowest' && styles.gameGoalButtonSelected,
+                {
+                  backgroundColor: theme.colors.card,
+                  borderColor: theme.colors.border,
+                },
+                gameGoal === 'lowest' && {
+                  backgroundColor: theme.colors.primary,
+                  borderColor: theme.colors.primary,
+                },
               ]}
               onPress={() => onGameGoalChange('lowest')}
             >
               <Text
                 style={[
                   styles.gameGoalButtonText,
+                  { color: theme.colors.text },
                   gameGoal === 'lowest' && styles.gameGoalButtonTextSelected,
                 ]}
               >
@@ -131,37 +182,63 @@ const UserSelection: React.FC<UserSelectionProps> = ({
         </View>
 
         <View style={styles.scoreLimitContainer}>
-          <Text style={styles.scoreLimitLabel}>
+          <Text style={[styles.scoreLimitLabel, { color: theme.colors.text }]}>
             Limite de score (optionnel):
           </Text>
           <TextInput
-            style={styles.scoreLimitInput}
+            style={[
+              styles.scoreLimitInput,
+              {
+                backgroundColor: theme.colors.card,
+                borderColor: theme.colors.border,
+                color: theme.colors.text,
+              },
+            ]}
             value={scoreLimit?.toString() || ''}
             onChangeText={value => {
-              const numValue = parseInt(value, 10);
-              onScoreLimitChange(isNaN(numValue) ? null : numValue);
+              const numValue = Number.parseInt(value, 10);
+              onScoreLimitChange(Number.isNaN(numValue) ? null : numValue);
             }}
             placeholder="Ex: 100"
-            placeholderTextColor="#666"
+            placeholderTextColor={theme.colors.placeholder}
             keyboardType="numeric"
           />
         </View>
       </View>
 
       <View style={styles.userSelectionHeader}>
-        <Text style={styles.userSelectionTitle}>Sélectionner les Joueurs</Text>
+        <Text style={[styles.userSelectionTitle, { color: theme.colors.text }]}>
+          Sélectionner les Joueurs
+        </Text>
         <View style={styles.headerActions}>
           <View style={styles.searchContainer}>
             <TextInput
-              style={styles.searchInput}
+              style={[
+                styles.searchInput,
+                {
+                  backgroundColor: theme.colors.card,
+                  borderColor: theme.colors.border,
+                  color: theme.colors.text,
+                },
+              ]}
               value={searchQuery}
               onChangeText={setSearchQuery}
               placeholder="Rechercher..."
-              placeholderTextColor="#666"
+              placeholderTextColor={theme.colors.placeholder}
             />
           </View>
-          <TouchableOpacity style={styles.addUserButton} onPress={onAddUser}>
-            <Text style={styles.addUserButtonText}>+ Nouveau Joueur</Text>
+          <TouchableOpacity
+            style={[
+              styles.addUserButton,
+              { backgroundColor: theme.colors.primary },
+            ]}
+            onPress={onAddUser}
+          >
+            <Text
+              style={[styles.addUserButtonText, { color: theme.colors.text }]}
+            >
+              + Nouveau Joueur
+            </Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -169,7 +246,12 @@ const UserSelection: React.FC<UserSelectionProps> = ({
       <ScrollView style={styles.userListContainer}>
         {filteredUsers.length === 0 ? (
           <View style={styles.emptyState}>
-            <Text style={styles.emptyStateText}>
+            <Text
+              style={[
+                styles.emptyStateText,
+                { color: theme.colors.textTertiary },
+              ]}
+            >
               {searchQuery ? 'Aucun joueur trouvé' : 'Aucun joueur disponible'}
             </Text>
           </View>
@@ -184,15 +266,21 @@ const UserSelection: React.FC<UserSelectionProps> = ({
         <TouchableOpacity
           style={[
             styles.startGameButton,
-            (selectedUsers.length < 2 || gameTitle === '') &&
-              styles.disabledButton,
+            {
+              backgroundColor:
+                selectedUsers.length < 2 || gameTitle === ''
+                  ? theme.colors.disabled
+                  : theme.colors.primary,
+            },
           ]}
           onPress={onStartGame}
           disabled={selectedUsers.length < 2 || gameTitle === ''}
         >
-          <Text style={styles.startGameButtonText}>
+          <Text
+            style={[styles.startGameButtonText, { color: theme.colors.text }]}
+          >
             Commencer la Partie ({selectedUsers.length} joueur
-            {selectedUsers.length !== 1 ? 's' : ''})
+            {selectedUsers.length === 1 ? '' : 's'})
           </Text>
         </TouchableOpacity>
       </View>
@@ -203,7 +291,6 @@ const UserSelection: React.FC<UserSelectionProps> = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#1a1a1a',
   },
   header: {
     padding: 10,
@@ -212,13 +299,11 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#ffffff',
     marginBottom: 6,
   },
   headerSubtitle: {
     fontSize: 14,
     paddingHorizontal: 30,
-    color: '#a0a0a0',
     textAlign: 'center',
   },
   gameTitleContainer: {
@@ -226,18 +311,14 @@ const styles = StyleSheet.create({
   },
   gameTitleLabel: {
     fontSize: 16,
-    color: '#ffffff',
     marginBottom: 8,
     fontWeight: '500',
   },
   gameTitleInput: {
-    backgroundColor: '#2a2a2a',
     borderRadius: 8,
     padding: 10,
     fontSize: 14,
-    color: '#ffffff',
     borderWidth: 1,
-    borderColor: '#3a3a3a',
   },
   gameConfigContainer: {
     paddingHorizontal: 20,
@@ -245,7 +326,6 @@ const styles = StyleSheet.create({
   },
   gameConfigLabel: {
     fontSize: 16,
-    color: '#ffffff',
     marginBottom: 12,
     fontWeight: '500',
   },
@@ -254,7 +334,6 @@ const styles = StyleSheet.create({
   },
   gameGoalLabel: {
     fontSize: 14,
-    color: '#ffffff',
     marginBottom: 8,
     fontWeight: '500',
   },
@@ -264,25 +343,17 @@ const styles = StyleSheet.create({
   },
   gameGoalButton: {
     flex: 1,
-    backgroundColor: '#2a2a2a',
     borderRadius: 6,
     padding: 10,
     borderWidth: 1,
-    borderColor: '#3a3a3a',
     alignItems: 'center',
-  },
-  gameGoalButtonSelected: {
-    backgroundColor: '#8b5cf6',
-    borderColor: '#8b5cf6',
   },
   gameGoalButtonText: {
     fontSize: 12,
-    color: '#ffffff',
     fontWeight: '500',
     textAlign: 'center',
   },
   gameGoalButtonTextSelected: {
-    color: '#ffffff',
     fontWeight: '600',
   },
   scoreLimitContainer: {
@@ -290,18 +361,14 @@ const styles = StyleSheet.create({
   },
   scoreLimitLabel: {
     fontSize: 14,
-    color: '#ffffff',
     marginBottom: 8,
     fontWeight: '500',
   },
   scoreLimitInput: {
-    backgroundColor: '#2a2a2a',
     borderRadius: 6,
     padding: 10,
     fontSize: 14,
-    color: '#ffffff',
     borderWidth: 1,
-    borderColor: '#3a3a3a',
   },
   userSelectionHeader: {
     paddingHorizontal: 20,
@@ -311,7 +378,6 @@ const styles = StyleSheet.create({
   userSelectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#ffffff',
     marginBottom: 10,
   },
   headerActions: {
@@ -323,17 +389,13 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   searchInput: {
-    backgroundColor: '#2a2a2a',
     borderRadius: 6,
     padding: 8,
     fontSize: 14,
-    color: '#ffffff',
     borderWidth: 1,
-    borderColor: '#3a3a3a',
     height: 36,
   },
   addUserButton: {
-    backgroundColor: '#8b5cf6',
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 6,
@@ -341,7 +403,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   addUserButtonText: {
-    color: '#ffffff',
     fontSize: 12,
     fontWeight: '600',
   },
@@ -361,27 +422,19 @@ const styles = StyleSheet.create({
   },
   emptyStateText: {
     fontSize: 16,
-    color: '#666',
     textAlign: 'center',
   },
   userSelectionItem: {
-    backgroundColor: '#2a2a2a',
     borderRadius: 8,
     padding: 10,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: '#3a3a3a',
     alignSelf: 'flex-start',
-  },
-  selectedUserItem: {
-    borderColor: '#8b5cf6',
-    backgroundColor: '#2a1a3a',
   },
   userSelectionName: {
     fontSize: 14,
-    color: '#ffffff',
     fontWeight: '500',
     marginLeft: 8,
     marginRight: 4,
@@ -392,7 +445,6 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   checkmark: {
-    color: '#8b5cf6',
     fontSize: 14,
     fontWeight: 'bold',
   },
@@ -400,16 +452,11 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   startGameButton: {
-    backgroundColor: '#8b5cf6',
     borderRadius: 12,
     padding: 16,
     alignItems: 'center',
   },
-  disabledButton: {
-    backgroundColor: '#4a4a4a',
-  },
   startGameButtonText: {
-    color: '#ffffff',
     fontSize: 18,
     fontWeight: '600',
   },

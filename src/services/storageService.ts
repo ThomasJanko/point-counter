@@ -1,8 +1,11 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { User, Game } from '../types';
+import { ThemeMode } from '../theme/types';
 
 const USERS_KEY = 'point_counter_users';
 const GAMES_KEY = 'point_counter_games';
+const THEME_MODE_KEY = 'point_counter_theme_mode';
+const THEME_PRIMARY_COLOR_KEY = 'point_counter_theme_primary_color';
 
 export const storageService = {
   // User management
@@ -94,6 +97,42 @@ export const storageService = {
       await AsyncStorage.removeItem(GAMES_KEY);
     } catch (error) {
       console.error('Error deleting all games:', error);
+    }
+  },
+
+  // Theme management
+  async getThemeMode(): Promise<ThemeMode | 'auto' | null> {
+    try {
+      const mode = await AsyncStorage.getItem(THEME_MODE_KEY);
+      return mode as ThemeMode | 'auto' | null;
+    } catch (error) {
+      console.error('Error getting theme mode:', error);
+      return null;
+    }
+  },
+
+  async saveThemeMode(mode: ThemeMode | 'auto'): Promise<void> {
+    try {
+      await AsyncStorage.setItem(THEME_MODE_KEY, mode);
+    } catch (error) {
+      console.error('Error saving theme mode:', error);
+    }
+  },
+
+  async getThemePrimaryColor(): Promise<string | null> {
+    try {
+      return await AsyncStorage.getItem(THEME_PRIMARY_COLOR_KEY);
+    } catch (error) {
+      console.error('Error getting theme primary color:', error);
+      return null;
+    }
+  },
+
+  async saveThemePrimaryColor(color: string): Promise<void> {
+    try {
+      await AsyncStorage.setItem(THEME_PRIMARY_COLOR_KEY, color);
+    } catch (error) {
+      console.error('Error saving theme primary color:', error);
     }
   },
 };
