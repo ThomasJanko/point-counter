@@ -246,7 +246,6 @@ const GameScreen = () => {
   };
 
   const updateScoreInLine = (lineId: string, userId: string, value: string) => {
-    console.log('updateScoreInLine', lineId, userId, value);
     // Always store the raw string value during typing
     setScoreLines(prev => {
       const updatedLines = {
@@ -266,7 +265,6 @@ const GameScreen = () => {
           updatedLine[user.id] !== '',
       );
 
-      console.log('allPlayersHaveScores', allPlayersHaveScores);
       if (allPlayersHaveScores) {
         const hasEmptyLine = Object.values(updatedLines).some(line =>
           selectedUsers.some(
@@ -278,7 +276,6 @@ const GameScreen = () => {
         );
 
         if (!hasEmptyLine) {
-          console.log('hasEmptyLine', hasEmptyLine);
           const newLineId = `line_${nextLineId}`;
           const newLineScores: { [userId: string]: number | null } = {};
           selectedUsers.forEach(user => {
@@ -289,7 +286,6 @@ const GameScreen = () => {
         }
       }
 
-      console.log('updatedLines', updatedLines);
       return updatedLines;
     });
 
@@ -400,21 +396,28 @@ const GameScreen = () => {
     setScoreLines(prev => {
       const newLines = { ...prev };
       delete newLines[lineId];
+
+      // Recalculate total scores using the new lines (after deletion)
+      const newTotalScores: { [userId: string]: number } = {};
+      selectedUsers.forEach(user => {
+        newTotalScores[user.id] = Object.values(newLines).reduce(
+          (sum, line) => {
+            const lineValue = line[user.id];
+            if (lineValue !== null && lineValue !== undefined) {
+              const numValue = parseFloat(lineValue.toString());
+              if (!isNaN(numValue)) {
+                return sum + numValue;
+              }
+            }
+            return sum;
+          },
+          0,
+        );
+      });
+      setScores(newTotalScores);
+
       return newLines;
     });
-
-    // Recalculate total scores
-    const newTotalScores: { [userId: string]: number } = {};
-    selectedUsers.forEach(user => {
-      newTotalScores[user.id] = Object.values(scoreLines).reduce(
-        (sum, line) => {
-          if (lineId in scoreLines && line === scoreLines[lineId]) return sum;
-          return sum + (line[user.id] || 0);
-        },
-        0,
-      );
-    });
-    setScores(newTotalScores);
   };
 
   const resetScores = () => {

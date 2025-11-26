@@ -75,10 +75,7 @@ const GameHistory: React.FC<GameHistoryProps> = ({
         </Text>
         {games.length > 0 && (
           <TouchableOpacity
-            style={[
-              styles.deleteAllButton,
-              { backgroundColor: theme.colors.error },
-            ]}
+            style={[styles.deleteAllButton]}
             onPress={handleDeleteAll}
           >
             <Text
@@ -175,8 +172,7 @@ const styles = StyleSheet.create({
   },
   deleteAllButton: {
     borderRadius: 8,
-    padding: 8,
-    minWidth: 40,
+    padding: 6,
     alignItems: 'center',
     justifyContent: 'center',
   },

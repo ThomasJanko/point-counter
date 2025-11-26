@@ -45,17 +45,18 @@ const ScoreTable: React.FC<ScoreTableProps> = ({
   const columnShifts = useRef<{ [key: number]: Animated.Value }>({});
 
   const handleScoreChange = (lineId: string, userId: string, value: string) => {
+    console.log('handleScoreChange', lineId, userId, value);
     // Remove leading zeros (e.g., "065" -> "65", "034" -> "34")
     // But keep "0" if the value is just "0"
     let cleanedValue = value;
     if (cleanedValue.length > 1 && cleanedValue.startsWith('0')) {
       cleanedValue = cleanedValue.replace(/^0+/, '') || '0';
     }
+    console.log('cleanedValue', cleanedValue);
     onScoreChange(lineId, userId, cleanedValue);
   };
 
   const focusNextInput = (currentLineId: string, currentUserId: string) => {
-    console.log('focusNextInput', currentLineId, currentUserId);
     const lineEntries = Object.entries(scoreLines);
     const currentLineIndex = lineEntries.findIndex(
       ([id]) => id === currentLineId,
@@ -376,7 +377,7 @@ const ScoreTable: React.FC<ScoreTableProps> = ({
                       const isFocused = focusedInput === inputKey;
                       return (
                         <TextInput
-                          multiline={true}
+                          // multiline={true}
                           ref={ref => {
                             inputRefs.current[inputKey] = ref;
                           }}
@@ -407,9 +408,10 @@ const ScoreTable: React.FC<ScoreTableProps> = ({
                           }
                           onFocus={() => onInputFocus(inputKey)}
                           onBlur={() => onInputBlur(user.id)}
-                          onSubmitEditing={() =>
-                            focusNextInput(lineId, user.id)
-                          }
+                          onSubmitEditing={() => {
+                            console.log('onSubmitEditing', lineId, user.id);
+                            focusNextInput(lineId, user.id);
+                          }}
                           keyboardType="numeric"
                           placeholder="0"
                           placeholderTextColor={theme.colors.placeholder}
@@ -469,7 +471,7 @@ const styles = StyleSheet.create({
   },
   scrollableRows: {
     flex: 1,
-    maxHeight: 400,
+    height: '100%',
   },
   tableHeader: {
     flexDirection: 'row',
@@ -482,10 +484,11 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-start',
   },
   lineNumberHeader: {
-    width: 30,
+    width: 24,
     fontSize: 12,
     fontWeight: 'bold',
     textAlign: 'center',
+    alignSelf: 'center',
   },
   playerHeaderCell: {
     width: 80,
@@ -512,11 +515,6 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   dragHandle: {
-    // position: 'absolute',
-    // left: 2,
-    // width: 4,
-    // height: 20,
-    // borderRadius: 2,
     opacity: 0.3,
   },
   dragHandleActive: {
@@ -551,10 +549,9 @@ const styles = StyleSheet.create({
     height: 34,
     borderRadius: 6,
     borderWidth: 2,
-    textAlign: 'center',
     fontSize: 13,
     fontWeight: '600',
-    marginHorizontal: 8,
+    marginHorizontal: 4,
     paddingVertical: 0,
     overflow: 'hidden',
   },
@@ -590,7 +587,7 @@ const styles = StyleSheet.create({
   headerCellWrapper: {
     position: 'relative',
     width: 80,
-    marginHorizontal: 7,
+    marginHorizontal: 4,
     alignItems: 'center',
     justifyContent: 'center',
   },
