@@ -244,6 +244,7 @@ const GameScreen = () => {
   };
 
   const updateScoreInLine = (lineId: string, userId: string, value: string) => {
+    console.log('updateScoreInLine', lineId, userId, value);
     // Always store the raw string value during typing
     setScoreLines(prev => {
       const updatedLines = {
@@ -263,6 +264,7 @@ const GameScreen = () => {
           updatedLine[user.id] !== '',
       );
 
+      console.log('allPlayersHaveScores', allPlayersHaveScores);
       if (allPlayersHaveScores) {
         const hasEmptyLine = Object.values(updatedLines).some(line =>
           selectedUsers.some(
@@ -274,6 +276,7 @@ const GameScreen = () => {
         );
 
         if (!hasEmptyLine) {
+          console.log('hasEmptyLine', hasEmptyLine);
           const newLineId = `line_${nextLineId}`;
           const newLineScores: { [userId: string]: number | null } = {};
           selectedUsers.forEach(user => {
@@ -284,6 +287,7 @@ const GameScreen = () => {
         }
       }
 
+      console.log('updatedLines', updatedLines);
       return updatedLines;
     });
 

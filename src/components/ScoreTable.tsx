@@ -53,6 +53,7 @@ const ScoreTable: React.FC<ScoreTableProps> = ({
   };
 
   const focusNextInput = (currentLineId: string, currentUserId: string) => {
+    console.log('focusNextInput', currentLineId, currentUserId);
     const lineEntries = Object.entries(scoreLines);
     const currentLineIndex = lineEntries.findIndex(
       ([id]) => id === currentLineId,
@@ -330,6 +331,7 @@ const ScoreTable: React.FC<ScoreTableProps> = ({
                       const isFocused = focusedInput === inputKey;
                       return (
                         <TextInput
+                          multiline={true}
                           ref={ref => {
                             inputRefs.current[inputKey] = ref;
                           }}
@@ -413,6 +415,7 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 12,
     width: '100%',
     alignItems: 'center',
+    justifyContent: 'flex-start',
   },
   lineNumberHeader: {
     width: 30,
@@ -448,11 +451,11 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(139, 92, 246, 0.1)',
   },
   dragHandle: {
-    position: 'absolute',
-    left: 2,
-    width: 4,
-    height: 20,
-    borderRadius: 2,
+    // position: 'absolute',
+    // left: 2,
+    // width: 4,
+    // height: 20,
+    // borderRadius: 2,
     opacity: 0.3,
   },
   dragHandleActive: {
@@ -462,7 +465,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: 'bold',
     color: '#8b5cf6',
-    marginLeft: 3,
     textAlign: 'center',
   },
   actionHeader: {
@@ -470,7 +472,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: 'bold',
     color: '#8b5cf6',
-    textAlign: 'center',
   },
   tableRow: {
     flexDirection: 'row',
@@ -478,7 +479,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
     borderBottomWidth: 1,
     borderBottomColor: '#3a3a3a',
-    alignItems: 'center',
     minHeight: 40,
   },
   lineNumberCell: {
@@ -500,7 +500,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#ffffff',
     marginHorizontal: 8,
-    paddingHorizontal: 4,
     paddingVertical: 0,
     overflow: 'hidden',
   },
@@ -538,11 +537,15 @@ const styles = StyleSheet.create({
     width: 10,
     height: 10,
     borderRadius: 5,
+    flex: 0,
+    marginRight: 4,
   },
   headerCellWrapper: {
     position: 'relative',
     width: 80,
-    marginHorizontal: 6,
+    marginHorizontal: 7,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   dropPlaceholderAbsolute: {
     position: 'absolute',
@@ -558,5 +561,4 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
   },
 });
-
 export default ScoreTable;
