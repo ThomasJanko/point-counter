@@ -11,9 +11,11 @@ import {
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { storageService } from '../services/storageService';
 import { User } from '../types';
+import { useTheme } from '../theme';
 
 const UserManagementScreen = () => {
   const navigation = useNavigation();
+  const { theme } = useTheme();
   const [users, setUsers] = useState<User[]>([]);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -58,58 +60,58 @@ const UserManagementScreen = () => {
   };
 
   const renderUser = ({ item }: { item: User }) => (
-    <View style={styles.userCard}>
+    <View style={[styles.userCard, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
       <View style={styles.userInfo}>
         <View
           style={[styles.colorIndicator, { backgroundColor: item.color }]}
         />
-        <Text style={styles.userName}>{item.name}</Text>
+        <Text style={[styles.userName, { color: theme.colors.text }]}>{item.name}</Text>
       </View>
       <View style={styles.userActions}>
         <TouchableOpacity
-          style={[styles.actionButton, styles.editButton]}
+          style={[styles.actionButton, { backgroundColor: theme.colors.info }]}
           onPress={() => navigation.navigate('EditUser', { user: item })}
         >
-          <Text style={styles.editButtonText}>Modifier</Text>
+          <Text style={[styles.editButtonText, { color: theme.colors.text }]}>Modifier</Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[styles.actionButton, styles.deleteButton]}
+          style={[styles.actionButton, { backgroundColor: theme.colors.error }]}
           onPress={() => handleDeleteUser(item)}
         >
-          <Text style={styles.deleteButtonText}>Supprimer</Text>
+          <Text style={[styles.deleteButtonText, { color: theme.colors.text }]}>Supprimer</Text>
         </TouchableOpacity>
       </View>
     </View>
   );
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <View style={styles.header}>
-        <Text style={styles.headerText}>
+        <Text style={[styles.headerText, { color: theme.colors.textSecondary }]}>
           {users.length} Utilisateur{users.length !== 1 ? 's' : ''} Enregistré
           {users.length !== 1 ? 's' : ''}
         </Text>
         <TouchableOpacity
-          style={styles.addButton}
+          style={[styles.addButton, { backgroundColor: theme.colors.primary }]}
           onPress={() => navigation.navigate('AddUser')}
         >
-          <Text style={styles.addButtonText}>+ Ajouter</Text>
+          <Text style={[styles.addButtonText, { color: theme.colors.text }]}>+ Ajouter</Text>
         </TouchableOpacity>
       </View>
 
       {users.length === 0 ? (
         <View style={styles.emptyContainer}>
           <Text style={styles.emptyIcon}>👥</Text>
-          <Text style={styles.emptyTitle}>Aucun Utilisateur</Text>
-          <Text style={styles.emptySubtitle}>
+          <Text style={[styles.emptyTitle, { color: theme.colors.text }]}>Aucun Utilisateur</Text>
+          <Text style={[styles.emptySubtitle, { color: theme.colors.textSecondary }]}>
             Ajoutez votre premier utilisateur pour commencer à compter les
             points
           </Text>
           <TouchableOpacity
-            style={styles.emptyButton}
+            style={[styles.emptyButton, { backgroundColor: theme.colors.primary }]}
             onPress={() => navigation.navigate('AddUser')}
           >
-            <Text style={styles.emptyButtonText}>
+            <Text style={[styles.emptyButtonText, { color: theme.colors.text }]}>
               Ajouter le Premier Utilisateur
             </Text>
           </TouchableOpacity>
@@ -132,7 +134,6 @@ const UserManagementScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#1a1a1a',
   },
   header: {
     flexDirection: 'row',
@@ -143,17 +144,14 @@ const styles = StyleSheet.create({
   },
   headerText: {
     fontSize: 18,
-    color: '#a0a0a0',
     fontWeight: '500',
   },
   addButton: {
-    backgroundColor: '#8b5cf6',
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 8,
   },
   addButtonText: {
-    color: '#ffffff',
     fontWeight: '600',
   },
   listContainer: {
@@ -161,7 +159,6 @@ const styles = StyleSheet.create({
     paddingTop: 10,
   },
   userCard: {
-    backgroundColor: '#2a2a2a',
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
@@ -169,7 +166,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     borderWidth: 1,
-    borderColor: '#3a3a3a',
   },
   userInfo: {
     flexDirection: 'row',
@@ -184,7 +180,6 @@ const styles = StyleSheet.create({
   },
   userName: {
     fontSize: 16,
-    color: '#ffffff',
     fontWeight: '500',
   },
   userActions: {
@@ -196,19 +191,11 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     marginLeft: 8,
   },
-  editButton: {
-    backgroundColor: '#3b82f6',
-  },
-  deleteButton: {
-    backgroundColor: '#ef4444',
-  },
   editButtonText: {
-    color: '#ffffff',
     fontSize: 12,
     fontWeight: '600',
   },
   deleteButtonText: {
-    color: '#ffffff',
     fontSize: 12,
     fontWeight: '600',
   },
@@ -225,24 +212,20 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#ffffff',
     marginBottom: 8,
   },
   emptySubtitle: {
     fontSize: 16,
-    color: '#a0a0a0',
     textAlign: 'center',
     marginBottom: 24,
     lineHeight: 24,
   },
   emptyButton: {
-    backgroundColor: '#8b5cf6',
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 8,
   },
   emptyButtonText: {
-    color: '#ffffff',
     fontSize: 16,
     fontWeight: '600',
   },

@@ -7,6 +7,7 @@ import {
   Modal,
   Alert,
 } from 'react-native';
+import { useTheme } from '../theme';
 
 interface GameMenuProps {
   visible: boolean;
@@ -25,6 +26,7 @@ const GameMenu: React.FC<GameMenuProps> = ({
   onSave,
   onEndGame,
 }) => {
+  const { theme } = useTheme();
   const handleEndGame = () => {
     onClose();
     Alert.alert(
@@ -44,11 +46,11 @@ const GameMenu: React.FC<GameMenuProps> = ({
   return (
     <Modal visible={visible} animationType="fade" transparent={true}>
       <TouchableOpacity
-        style={styles.menuOverlay}
+        style={[styles.menuOverlay, { backgroundColor: theme.colors.overlay }]}
         activeOpacity={1}
         onPress={onClose}
       >
-        <View style={styles.menuContainer}>
+        <View style={[styles.menuContainer, { backgroundColor: theme.colors.card, shadowColor: theme.colors.shadow }]}>
           <TouchableOpacity
             style={styles.menuItem}
             onPress={() => {
@@ -56,7 +58,7 @@ const GameMenu: React.FC<GameMenuProps> = ({
               onChangePlayers();
             }}
           >
-            <Text style={styles.menuItemText}>Changer les joueurs</Text>
+            <Text style={[styles.menuItemText, { color: theme.colors.text }]}>Changer les joueurs</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.menuItem}
@@ -65,7 +67,7 @@ const GameMenu: React.FC<GameMenuProps> = ({
               onReset();
             }}
           >
-            <Text style={styles.menuItemText}>Réinitialiser</Text>
+            <Text style={[styles.menuItemText, { color: theme.colors.text }]}>Réinitialiser</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.menuItem}
@@ -74,13 +76,13 @@ const GameMenu: React.FC<GameMenuProps> = ({
               onSave();
             }}
           >
-            <Text style={styles.menuItemText}>Enregistrer la partie</Text>
+            <Text style={[styles.menuItemText, { color: theme.colors.text }]}>Enregistrer la partie</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.menuItem, styles.menuItemDanger]}
+            style={[styles.menuItem, { backgroundColor: theme.colors.errorLight + '20' }]}
             onPress={handleEndGame}
           >
-            <Text style={[styles.menuItemText, styles.menuItemTextDanger]}>
+            <Text style={[styles.menuItemText, { color: theme.colors.errorLight }]}>
               Terminer la partie
             </Text>
           </TouchableOpacity>
@@ -93,18 +95,15 @@ const GameMenu: React.FC<GameMenuProps> = ({
 const styles = StyleSheet.create({
   menuOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'flex-start',
     alignItems: 'flex-end',
     paddingTop: 60,
     paddingRight: 20,
   },
   menuContainer: {
-    backgroundColor: '#2a2a2a',
     borderRadius: 12,
     padding: 8,
     minWidth: 200,
-    shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
@@ -116,16 +115,9 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     marginVertical: 2,
   },
-  menuItemDanger: {
-    backgroundColor: '#4a1a1a',
-  },
   menuItemText: {
-    color: '#ffffff',
     fontSize: 16,
     fontWeight: '500',
-  },
-  menuItemTextDanger: {
-    color: '#ff6b6b',
   },
 });
 

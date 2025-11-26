@@ -6,8 +6,11 @@
 import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
-import { StatusBar, useColorScheme } from 'react-native';
+import { StatusBar } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+
+// Theme
+import { ThemeProvider, useTheme } from './src/theme';
 
 // Screens
 import HomeScreen from './src/screens/HomeScreen';
@@ -18,59 +21,68 @@ import GameScreen from './src/screens/GameScreen';
 
 const Stack = createStackNavigator();
 
-function App() {
-  const isDarkMode = useColorScheme() === 'dark';
+function AppNavigator() {
+  const { theme } = useTheme();
 
   return (
-    <SafeAreaProvider>
+    <NavigationContainer>
       <StatusBar
-        barStyle={isDarkMode ? 'light-content' : 'dark-content'}
-        backgroundColor="#1a1a1a"
+        barStyle={theme.mode === 'dark' ? 'light-content' : 'dark-content'}
+        backgroundColor={theme.colors.background}
       />
-      <NavigationContainer>
-        <Stack.Navigator
-          initialRouteName="Home"
-          screenOptions={{
-            headerStyle: {
-              backgroundColor: '#1a1a1a',
-            },
-            headerTintColor: '#8b5cf6',
-            headerTitleStyle: {
-              fontWeight: 'bold',
-              fontSize: 20,
-            },
-            cardStyle: {
-              backgroundColor: '#1a1a1a',
-            },
-          }}
-        >
-          <Stack.Screen
-            name="Home"
-            component={HomeScreen}
-            options={{ title: 'Compteur de Points' }}
-          />
-          <Stack.Screen
-            name="UserManagement"
-            component={UserManagementScreen}
-            options={{ title: 'Gérer les Utilisateurs' }}
-          />
-          <Stack.Screen
-            name="AddUser"
-            component={AddUserScreen}
-            options={{ title: 'Ajouter un Utilisateur' }}
-          />
-          <Stack.Screen
-            name="EditUser"
-            component={EditUserScreen}
-            options={{ title: "Modifier l'Utilisateur" }}
-          />
-          <Stack.Screen
-            name="Game"
-            component={GameScreen}
-            options={{ title: 'Nouvelle Partie' }}
-          />
-        </Stack.Navigator>
-      </NavigationContainer>
+      <Stack.Navigator
+        initialRouteName="Home"
+        screenOptions={{
+          headerStyle: {
+            backgroundColor: theme.colors.background,
+          },
+          headerTintColor: theme.colors.primary,
+          headerTitleStyle: {
+            fontWeight: 'bold',
+            fontSize: 20,
+            color: theme.colors.text,
+          },
+          cardStyle: {
+            backgroundColor: theme.colors.background,
+          },
+        }}
+      >
+        <Stack.Screen
+          name="Home"
+          component={HomeScreen}
+          options={{ title: 'Compteur de Points' }}
+        />
+        <Stack.Screen
+          name="UserManagement"
+          component={UserManagementScreen}
+          options={{ title: 'Gérer les Utilisateurs' }}
+        />
+        <Stack.Screen
+          name="AddUser"
+          component={AddUserScreen}
+          options={{ title: 'Ajouter un Utilisateur' }}
+        />
+        <Stack.Screen
+          name="EditUser"
+          component={EditUserScreen}
+          options={{ title: "Modifier l'Utilisateur" }}
+        />
+        <Stack.Screen
+          name="Game"
+          component={GameScreen}
+          options={{ title: 'Nouvelle Partie' }}
+        />
+      </Stack.Navigator>
+    </NavigationContainer>
+  );
+}
+
+function App() {
+  return (
+    <SafeAreaProvider>
+      <ThemeProvider>
+        <AppNavigator />
+      </ThemeProvider>
     </SafeAreaProvider>
   );
 }

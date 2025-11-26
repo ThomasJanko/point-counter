@@ -11,6 +11,7 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import { storageService } from '../services/storageService';
 import { User } from '../types';
+import { useTheme } from '../theme';
 import ColorPicker from './ColorPicker';
 
 interface UserFormProps {
@@ -20,8 +21,9 @@ interface UserFormProps {
 
 const UserForm: React.FC<UserFormProps> = ({ user, mode }) => {
   const navigation = useNavigation();
+  const { theme } = useTheme();
   const [name, setName] = useState(user?.name || '');
-  const [selectedColor, setSelectedColor] = useState(user?.color || '#8b5cf6');
+  const [selectedColor, setSelectedColor] = useState(user?.color || theme.colors.primary);
 
   const validateName = (): boolean => {
     if (!name.trim()) {
@@ -107,27 +109,27 @@ const UserForm: React.FC<UserFormProps> = ({ user, mode }) => {
   };
 
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <View style={styles.content}>
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Informations Utilisateur</Text>
+          <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Informations Utilisateur</Text>
 
           <View style={styles.inputContainer}>
-            <Text style={styles.label}>Nom</Text>
+            <Text style={[styles.label, { color: theme.colors.text }]}>Nom</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, { backgroundColor: theme.colors.card, borderColor: theme.colors.border, color: theme.colors.text }]}
               value={name}
               onChangeText={setName}
               placeholder="Entrez le nom d'utilisateur"
-              placeholderTextColor="#666"
+              placeholderTextColor={theme.colors.placeholder}
               maxLength={20}
             />
           </View>
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Choisir une Couleur</Text>
-          <Text style={styles.sectionSubtitle}>
+          <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Choisir une Couleur</Text>
+          <Text style={[styles.sectionSubtitle, { color: theme.colors.textSecondary }]}>
             Glissez sur la palette pour sélectionner une couleur, puis ajustez
             la teinte avec la barre en dessous
           </Text>
@@ -137,7 +139,7 @@ const UserForm: React.FC<UserFormProps> = ({ user, mode }) => {
 
         <View style={styles.previewSection}>
           {/* <Text style={styles.sectionTitle}>Aperçu</Text> */}
-          <View style={styles.previewCard}>
+          <View style={[styles.previewCard, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
             <View style={styles.previewUserInfo}>
               <View
                 style={[
@@ -145,7 +147,7 @@ const UserForm: React.FC<UserFormProps> = ({ user, mode }) => {
                   { backgroundColor: selectedColor },
                 ]}
               />
-              <Text style={styles.previewName}>
+              <Text style={[styles.previewName, { color: theme.colors.text }]}>
                 {name || "Nom d'utilisateur"}
               </Text>
             </View>
@@ -154,23 +156,23 @@ const UserForm: React.FC<UserFormProps> = ({ user, mode }) => {
 
         <View style={styles.buttonContainer}>
           <TouchableOpacity
-            style={[styles.button, styles.cancelButton]}
+            style={[styles.button, { borderWidth: 2, borderColor: theme.colors.textTertiary }]}
             onPress={() => navigation.goBack()}
           >
-            <Text style={styles.cancelButtonText}>Annuler</Text>
+            <Text style={[styles.cancelButtonText, { color: theme.colors.textTertiary }]}>Annuler</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.button, styles.saveButton]}
+            style={[styles.button, { backgroundColor: theme.colors.primary }]}
             onPress={handleSave}
           >
-            <Text style={styles.saveButtonText}>Enregistrer</Text>
+            <Text style={[styles.saveButtonText, { color: theme.colors.text }]}>Enregistrer</Text>
           </TouchableOpacity>
         </View>
 
         {mode === 'edit' && (
-          <TouchableOpacity style={styles.deleteButton} onPress={handleDelete}>
-            <Text style={styles.deleteButtonText}>Supprimer l'Utilisateur</Text>
+          <TouchableOpacity style={[styles.deleteButton, { borderColor: theme.colors.error }]} onPress={handleDelete}>
+            <Text style={[styles.deleteButtonText, { color: theme.colors.error }]}>Supprimer l'Utilisateur</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -181,7 +183,6 @@ const UserForm: React.FC<UserFormProps> = ({ user, mode }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#1a1a1a',
   },
   content: {
     padding: 20,
@@ -192,12 +193,10 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#ffffff',
     marginBottom: 8,
   },
   sectionSubtitle: {
     fontSize: 14,
-    color: '#a0a0a0',
     marginBottom: 16,
   },
   inputContainer: {
@@ -205,28 +204,22 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 16,
-    color: '#ffffff',
     marginBottom: 8,
     fontWeight: '500',
   },
   input: {
-    backgroundColor: '#2a2a2a',
     borderRadius: 8,
     padding: 12,
     fontSize: 16,
-    color: '#ffffff',
     borderWidth: 1,
-    borderColor: '#3a3a3a',
   },
   previewSection: {
     marginBottom: 32,
   },
   previewCard: {
-    backgroundColor: '#2a2a2a',
     borderRadius: 12,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#3a3a3a',
   },
   previewUserInfo: {
     flexDirection: 'row',
@@ -240,7 +233,6 @@ const styles = StyleSheet.create({
   },
   previewName: {
     fontSize: 16,
-    color: '#ffffff',
     fontWeight: '500',
   },
   buttonContainer: {
@@ -254,36 +246,25 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: 'center',
     marginHorizontal: 8,
-  },
-  cancelButton: {
     backgroundColor: 'transparent',
-    borderWidth: 2,
-    borderColor: '#6b7280',
-  },
-  saveButton: {
-    backgroundColor: '#8b5cf6',
   },
   cancelButtonText: {
-    color: '#6b7280',
     fontSize: 16,
     fontWeight: '600',
   },
   saveButtonText: {
-    color: '#ffffff',
     fontSize: 16,
     fontWeight: '600',
   },
   deleteButton: {
     backgroundColor: 'transparent',
     borderWidth: 2,
-    borderColor: '#ef4444',
     paddingVertical: 16,
     borderRadius: 8,
     alignItems: 'center',
     marginTop: 16,
   },
   deleteButtonText: {
-    color: '#ef4444',
     fontSize: 16,
     fontWeight: '600',
   },

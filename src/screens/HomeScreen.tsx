@@ -7,12 +7,14 @@ import {
 } from '@react-navigation/native';
 import { storageService } from '../services/storageService';
 import { Game } from '../types';
+import { useTheme } from '../theme';
 import StatsCard from '../components/StatsCard';
 import ActionButtons from '../components/ActionButtons';
 import GameHistory from '../components/GameHistory';
 
 const HomeScreen = () => {
   const navigation = useNavigation<NavigationProp<any>>();
+  const { theme } = useTheme();
   const [userCount, setUserCount] = useState(0);
   const [games, setGames] = useState<Game[]>([]);
 
@@ -94,10 +96,10 @@ const HomeScreen = () => {
   };
 
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <View style={styles.content}>
-        <Text style={styles.title}>Compteur de Points</Text>
-        <Text style={styles.subtitle}>Suivez les points dans vos jeux</Text>
+        <Text style={[styles.title, { color: theme.colors.primary }]}>Compteur de Points</Text>
+        <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>Suivez les points dans vos jeux</Text>
 
         <StatsCard userCount={userCount} />
 
@@ -121,7 +123,6 @@ const HomeScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#1a1a1a',
   },
   content: {
     flex: 1,
@@ -131,13 +132,11 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 32,
     fontWeight: 'bold',
-    color: '#8b5cf6',
     textAlign: 'center',
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 16,
-    color: '#a0a0a0',
     textAlign: 'center',
     marginBottom: 40,
   },

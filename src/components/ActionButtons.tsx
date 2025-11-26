@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, TouchableOpacity, Text, StyleSheet } from 'react-native';
 import { NavigationProp } from '@react-navigation/native';
+import { useTheme } from '../theme';
 
 interface ActionButtonsProps {
   userCount: number;
@@ -13,20 +14,21 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
   onStartGame,
   navigation,
 }) => {
+  const { theme } = useTheme();
   return (
     <View style={styles.buttonContainer}>
       <TouchableOpacity
-        style={[styles.button, styles.primaryButton]}
+        style={[styles.button, { backgroundColor: theme.colors.primary }]}
         onPress={onStartGame}
       >
-        <Text style={styles.buttonText}>Nouvelle Partie</Text>
+        <Text style={[styles.buttonText, { color: theme.colors.text }]}>Nouvelle Partie</Text>
       </TouchableOpacity>
 
       <TouchableOpacity
-        style={[styles.button, styles.secondaryButton]}
+        style={[styles.button, { borderWidth: 2, borderColor: theme.colors.primary }]}
         onPress={() => navigation.navigate('UserManagement')}
       >
-        <Text style={styles.secondaryButtonText}>Gérer les Utilisateurs</Text>
+        <Text style={[styles.secondaryButtonText, { color: theme.colors.primary }]}>Gérer les Utilisateurs</Text>
       </TouchableOpacity>
     </View>
   );
@@ -42,22 +44,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     marginBottom: 16,
     alignItems: 'center',
-  },
-  primaryButton: {
-    backgroundColor: '#8b5cf6',
-  },
-  secondaryButton: {
     backgroundColor: 'transparent',
-    borderWidth: 2,
-    borderColor: '#8b5cf6',
   },
   buttonText: {
-    color: '#ffffff',
     fontSize: 18,
     fontWeight: '600',
   },
   secondaryButtonText: {
-    color: '#8b5cf6',
     fontSize: 18,
     fontWeight: '600',
   },

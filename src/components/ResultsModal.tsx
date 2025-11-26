@@ -8,6 +8,7 @@ import {
   ScrollView,
 } from 'react-native';
 import { User } from '../types';
+import { useTheme } from '../theme';
 
 interface PlayerWithScore extends User {
   score: number;
@@ -28,12 +29,13 @@ const ResultsModal: React.FC<ResultsModalProps> = ({
   scoreLimit,
   onClose,
 }) => {
+  const { theme } = useTheme();
   return (
     <Modal visible={visible} animationType="slide" transparent={true}>
-      <View style={styles.resultsModalOverlay}>
-        <View style={styles.resultsModalContent}>
-          <Text style={styles.resultsTitle}>🏆 Partie Terminée 🏆</Text>
-          <Text style={styles.resultsSubtitle}>
+      <View style={[styles.resultsModalOverlay, { backgroundColor: theme.colors.overlay }]}>
+        <View style={[styles.resultsModalContent, { backgroundColor: theme.colors.card, borderColor: theme.colors.primary }]}>
+          <Text style={[styles.resultsTitle, { color: theme.colors.primary }]}>🏆 Partie Terminée 🏆</Text>
+          <Text style={[styles.resultsSubtitle, { color: theme.colors.text }]}>
             Classement Final (
             {gameGoal === 'highest'
               ? 'Score le plus élevé gagne'
@@ -41,14 +43,14 @@ const ResultsModal: React.FC<ResultsModalProps> = ({
             )
           </Text>
           {scoreLimit && (
-            <Text style={styles.scoreLimitInfo}>
+            <Text style={[styles.scoreLimitInfo, { color: theme.colors.primary }]}>
               🎯 Limite de {scoreLimit} points atteinte!
             </Text>
           )}
 
           <ScrollView style={styles.rankingList}>
             {rankedPlayers.map((player, index) => (
-              <View key={player.id} style={styles.rankingItem}>
+              <View key={player.id} style={[styles.rankingItem, { backgroundColor: theme.colors.background, borderColor: theme.colors.border }]}>
                 <View style={styles.rankingLeft}>
                   <Text style={styles.rankingPosition}>
                     {index === 0 && '🥇'}
@@ -62,19 +64,19 @@ const ResultsModal: React.FC<ResultsModalProps> = ({
                       { backgroundColor: player.color },
                     ]}
                   />
-                  <Text style={styles.rankingName}>{player.name}</Text>
+                  <Text style={[styles.rankingName, { color: theme.colors.text }]}>{player.name}</Text>
                 </View>
-                <Text style={styles.rankingScore}>{player.score} pts</Text>
+                <Text style={[styles.rankingScore, { color: theme.colors.primary }]}>{player.score} pts</Text>
               </View>
             ))}
           </ScrollView>
 
-          <Text style={styles.savedMessage}>
+          <Text style={[styles.savedMessage, { color: theme.colors.success }]}>
             ✓ Partie enregistrée dans l'historique
           </Text>
 
-          <TouchableOpacity style={styles.resultsButton} onPress={onClose}>
-            <Text style={styles.resultsButtonText}>Retour à l'accueil</Text>
+          <TouchableOpacity style={[styles.resultsButton, { backgroundColor: theme.colors.primary }]} onPress={onClose}>
+            <Text style={[styles.resultsButtonText, { color: theme.colors.text }]}>Retour à l'accueil</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -85,36 +87,30 @@ const ResultsModal: React.FC<ResultsModalProps> = ({
 const styles = StyleSheet.create({
   resultsModalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.9)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   resultsModalContent: {
-    backgroundColor: '#2a2a2a',
     borderRadius: 20,
     padding: 24,
     width: '90%',
     maxHeight: '80%',
     borderWidth: 2,
-    borderColor: '#8b5cf6',
   },
   resultsTitle: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#8b5cf6',
     textAlign: 'center',
     marginBottom: 8,
   },
   resultsSubtitle: {
     fontSize: 18,
-    color: '#ffffff',
     textAlign: 'center',
     marginBottom: 12,
     fontWeight: '600',
   },
   scoreLimitInfo: {
     fontSize: 14,
-    color: '#8b5cf6',
     textAlign: 'center',
     marginBottom: 24,
     fontWeight: '500',
@@ -127,12 +123,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#1a1a1a',
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: '#3a3a3a',
   },
   rankingLeft: {
     flexDirection: 'row',
@@ -148,7 +142,6 @@ const styles = StyleSheet.create({
   },
   rankingName: {
     fontSize: 18,
-    color: '#ffffff',
     fontWeight: '600',
     marginLeft: 12,
     flex: 1,
@@ -156,23 +149,19 @@ const styles = StyleSheet.create({
   rankingScore: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#8b5cf6',
   },
   savedMessage: {
     fontSize: 14,
-    color: '#4ade80',
     textAlign: 'center',
     marginBottom: 16,
     fontWeight: '500',
   },
   resultsButton: {
-    backgroundColor: '#8b5cf6',
     borderRadius: 12,
     padding: 16,
     alignItems: 'center',
   },
   resultsButtonText: {
-    color: '#ffffff',
     fontSize: 18,
     fontWeight: '600',
   },

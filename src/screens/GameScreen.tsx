@@ -8,6 +8,7 @@ import {
 import type { NavigationProp } from '@react-navigation/native';
 import { storageService } from '../services/storageService';
 import { User, Game } from '../types';
+import { useTheme } from '../theme';
 import UserSelection from '../components/UserSelection';
 import ScoreTable from '../components/ScoreTable';
 import TotalScores from '../components/TotalScores';
@@ -18,6 +19,7 @@ import UserSelectionModal from '../components/UserSelectionModal';
 const GameScreen = () => {
   const navigation = useNavigation<NavigationProp<any>>();
   const route = useRoute();
+  const { theme } = useTheme();
   const savedGame = (route.params as any)?.savedGame as Game | undefined;
 
   const [users, setUsers] = useState<User[]>([]);
@@ -565,21 +567,33 @@ const GameScreen = () => {
   }
 
   return (
-    <View style={styles.container}>
+    <View
+      style={[styles.container, { backgroundColor: theme.colors.background }]}
+    >
       <View style={styles.gameHeader}>
         <View style={styles.tableHeaderContainer}>
-          <Text style={styles.leaderboardTitle}>Scores</Text>
+          <Text style={[styles.leaderboardTitle, { color: theme.colors.text }]}>
+            Scores
+          </Text>
         </View>
         {/* {scoreLimit && (
-          <Text style={styles.scoreLimitIndicator}>
+          <Text style={[styles.scoreLimitIndicator, { color: theme.colors.primary }]}>
             Limite: {scoreLimit} pts
           </Text>
         )} */}
         <TouchableOpacity
-          style={styles.menuButton}
+          style={[
+            styles.menuButton,
+            {
+              backgroundColor: theme.colors.surface,
+              borderColor: theme.colors.borderLight,
+            },
+          ]}
           onPress={() => setShowMenu(true)}
         >
-          <Text style={styles.menuButtonText}>⋮</Text>
+          <Text style={[styles.menuButtonText, { color: theme.colors.text }]}>
+            ⋮
+          </Text>
         </TouchableOpacity>
       </View>
 
@@ -651,7 +665,6 @@ const GameScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#1a1a1a',
   },
   gameHeader: {
     flexDirection: 'row',
@@ -663,7 +676,6 @@ const styles = StyleSheet.create({
   },
   scoreLimitIndicator: {
     fontSize: 12,
-    color: '#8b5cf6',
     fontWeight: '500',
     marginRight: 12,
   },
@@ -671,15 +683,12 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#2a2a2a',
     justifyContent: 'center',
     alignItems: 'center',
     marginLeft: 12,
     borderWidth: 1,
-    borderColor: '#4a4a4a',
   },
   menuButtonText: {
-    color: '#ffffff',
     fontSize: 20,
     fontWeight: 'bold',
   },
@@ -689,7 +698,6 @@ const styles = StyleSheet.create({
   leaderboardTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#ffffff',
     textAlign: 'center',
   },
 });

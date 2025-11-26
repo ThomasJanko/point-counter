@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { User } from '../types';
+import { useTheme } from '../theme';
 
 interface TotalScoresProps {
   selectedUsers: User[];
@@ -13,23 +14,24 @@ const TotalScores: React.FC<TotalScoresProps> = ({
   scores,
   focusedInput: _focusedInput,
 }) => {
+  const { theme } = useTheme();
   const truncateName = (name: string) => {
     return name.length > 15 ? name.slice(0, 15) + '...' : name;
   };
 
   return (
-    <View style={styles.totalScoresContainer}>
-      <Text style={styles.totalScoresTitle}>Totaux</Text>
+    <View style={[styles.totalScoresContainer, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
+      <Text style={[styles.totalScoresTitle, { color: theme.colors.text }]}>Totaux</Text>
       <View style={styles.totalScoresGrid}>
         {selectedUsers.map(user => (
-          <View key={user.id} style={styles.totalScoreItem}>
+          <View key={user.id} style={[styles.totalScoreItem, { backgroundColor: theme.colors.background }]}>
             <View
               style={[styles.colorIndicator, { backgroundColor: user.color }]}
             />
-            <Text numberOfLines={1} style={styles.totalScoreName}>
+            <Text numberOfLines={1} style={[styles.totalScoreName, { color: theme.colors.text }]}>
               {truncateName(user.name)}
             </Text>
-            <Text style={styles.totalScoreValue}>{scores[user.id] || 0}</Text>
+            <Text style={[styles.totalScoreValue, { color: theme.colors.primary }]}>{scores[user.id] || 0}</Text>
           </View>
         ))}
       </View>
@@ -39,18 +41,15 @@ const TotalScores: React.FC<TotalScoresProps> = ({
 
 const styles = StyleSheet.create({
   totalScoresContainer: {
-    backgroundColor: '#2a2a2a',
     borderRadius: 12,
     padding: 4,
     margin: 14,
     marginTop: 0,
     borderWidth: 1,
-    borderColor: '#3a3a3a',
   },
   totalScoresTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#fff',
     textAlign: 'center',
     marginBottom: 6,
   },
@@ -62,7 +61,6 @@ const styles = StyleSheet.create({
   totalScoreItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1a1a1a',
     borderRadius: 6,
     padding: 4,
     paddingHorizontal: 6,
@@ -72,14 +70,12 @@ const styles = StyleSheet.create({
   },
   totalScoreName: {
     fontSize: 12,
-    color: '#ffffff',
     fontWeight: '500',
     marginLeft: 4,
   },
   totalScoreValue: {
     fontSize: 14,
     fontWeight: 'bold',
-    color: '#8b5cf6',
   },
   colorIndicator: {
     width: 10,

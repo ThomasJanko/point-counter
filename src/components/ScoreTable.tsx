@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { User } from '../types';
+import { useTheme } from '../theme';
 
 interface ScoreTableProps {
   selectedUsers: User[];
@@ -34,6 +35,7 @@ const ScoreTable: React.FC<ScoreTableProps> = ({
   onDeleteLine,
   onUsersReorder,
 }) => {
+  const { theme } = useTheme();
   const inputRefs = useRef<{ [key: string]: TextInput | null }>({});
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [targetIndex, setTargetIndex] = useState<number | null>(null);
@@ -223,7 +225,15 @@ const ScoreTable: React.FC<ScoreTableProps> = ({
 
   return (
     <View style={styles.scoreTableContainer}>
-      <View style={styles.scrollContainer}>
+      <View
+        style={[
+          styles.scrollContainer,
+          {
+            backgroundColor: theme.colors.card,
+            borderColor: theme.colors.border,
+          },
+        ]}
+      >
         <ScrollView
           style={styles.scoreTable}
           horizontal={true}
@@ -232,8 +242,20 @@ const ScoreTable: React.FC<ScoreTableProps> = ({
         >
           <View style={styles.tableContainer}>
             {/* Header Row */}
-            <View style={styles.tableHeader}>
-              <Text style={styles.lineNumberHeader}>#</Text>
+            <View
+              style={[
+                styles.tableHeader,
+                { backgroundColor: theme.colors.surface },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.lineNumberHeader,
+                  { color: theme.colors.primary },
+                ]}
+              >
+                #
+              </Text>
               {selectedUsers.map((user, index) => {
                 const isDragging = draggedIndex === index;
                 const isTarget =
@@ -250,6 +272,7 @@ const ScoreTable: React.FC<ScoreTableProps> = ({
                         style={[
                           styles.playerHeaderCell,
                           styles.placeholderCell,
+                          { borderColor: theme.colors.textTertiary },
                         ]}
                       />
                     )}
@@ -260,6 +283,8 @@ const ScoreTable: React.FC<ScoreTableProps> = ({
                           styles.dropPlaceholder,
                           styles.dropPlaceholderAbsolute,
                           {
+                            borderColor: theme.colors.primary,
+                            backgroundColor: theme.colors.primaryBackground,
                             opacity: opacityAnimated.interpolate({
                               inputRange: [0.6, 1],
                               outputRange: [0.8, 0],
@@ -307,7 +332,14 @@ const ScoreTable: React.FC<ScoreTableProps> = ({
                             { backgroundColor: user.color },
                           ]}
                         />
-                        <Text style={styles.playerHeaderText}>{user.name}</Text>
+                        <Text
+                          style={[
+                            styles.playerHeaderText,
+                            { color: theme.colors.primary },
+                          ]}
+                        >
+                          {user.name}
+                        </Text>
                       </Animated.View>
                     </GestureDetector>
                   </View>
@@ -324,8 +356,21 @@ const ScoreTable: React.FC<ScoreTableProps> = ({
             >
               {Object.entries(scoreLines).map(
                 ([lineId, lineScores], lineIndex) => (
-                  <View key={lineId} style={styles.tableRow}>
-                    <Text style={styles.lineNumberCell}>{lineIndex + 1}</Text>
+                  <View
+                    key={lineId}
+                    style={[
+                      styles.tableRow,
+                      { borderBottomColor: theme.colors.border },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.lineNumberCell,
+                        { color: theme.colors.primary },
+                      ]}
+                    >
+                      {lineIndex + 1}
+                    </Text>
                     {selectedUsers.map(user => {
                       const inputKey = `${lineId}_${user.id}`;
                       const isFocused = focusedInput === inputKey;
@@ -338,7 +383,19 @@ const ScoreTable: React.FC<ScoreTableProps> = ({
                           key={inputKey}
                           style={[
                             styles.scoreInputCell,
-                            isFocused && styles.scoreInputCellFocused,
+                            {
+                              backgroundColor: theme.colors.card,
+                              borderColor: theme.colors.borderLight,
+                              color: theme.colors.text,
+                            },
+                            isFocused && [
+                              styles.scoreInputCellFocused,
+                              {
+                                borderColor: theme.colors.primary,
+                                backgroundColor: theme.colors.primaryBackground,
+                                shadowColor: theme.colors.primary,
+                              },
+                            ],
                           ]}
                           value={
                             lineScores[user.id] == null
@@ -355,7 +412,7 @@ const ScoreTable: React.FC<ScoreTableProps> = ({
                           }
                           keyboardType="numeric"
                           placeholder="0"
-                          placeholderTextColor="#666"
+                          placeholderTextColor={theme.colors.placeholder}
                           selectTextOnFocus={true}
                           returnKeyType="next"
                           textAlignVertical="center"
@@ -366,8 +423,18 @@ const ScoreTable: React.FC<ScoreTableProps> = ({
                       style={styles.deleteLineButton}
                       onPress={() => onDeleteLine(lineId)}
                     >
-                      <View style={styles.minusIconContainer}>
-                        <View style={styles.minusIcon} />
+                      <View
+                        style={[
+                          styles.minusIconContainer,
+                          { backgroundColor: theme.colors.error },
+                        ]}
+                      >
+                        <View
+                          style={[
+                            styles.minusIcon,
+                            { backgroundColor: theme.colors.text },
+                          ]}
+                        />
                       </View>
                     </TouchableOpacity>
                   </View>
@@ -390,10 +457,8 @@ const styles = StyleSheet.create({
   },
   scrollContainer: {
     flex: 1,
-    backgroundColor: '#2a2a2a',
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#3a3a3a',
   },
   scoreTable: {
     flex: 1,
@@ -408,7 +473,6 @@ const styles = StyleSheet.create({
   },
   tableHeader: {
     flexDirection: 'row',
-    backgroundColor: '#3a3a3a',
     paddingVertical: 6,
     paddingHorizontal: 8,
     borderTopLeftRadius: 12,
@@ -421,7 +485,6 @@ const styles = StyleSheet.create({
     width: 30,
     fontSize: 12,
     fontWeight: 'bold',
-    color: '#8b5cf6',
     textAlign: 'center',
   },
   playerHeaderCell: {
@@ -446,9 +509,7 @@ const styles = StyleSheet.create({
     height: 20,
     borderWidth: 2,
     borderStyle: 'dashed',
-    borderColor: '#8b5cf6',
     borderRadius: 6,
-    backgroundColor: 'rgba(139, 92, 246, 0.1)',
   },
   dragHandle: {
     // position: 'absolute',
@@ -464,7 +525,6 @@ const styles = StyleSheet.create({
   playerHeaderText: {
     fontSize: 13,
     fontWeight: 'bold',
-    color: '#8b5cf6',
     textAlign: 'center',
   },
   actionHeader: {
@@ -478,35 +538,27 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     paddingHorizontal: 4,
     borderBottomWidth: 1,
-    borderBottomColor: '#3a3a3a',
     minHeight: 40,
   },
   lineNumberCell: {
     width: 30,
     fontSize: 12,
     fontWeight: 'bold',
-    color: '#8b5cf6',
     textAlign: 'center',
   },
   scoreInputCell: {
     width: 80,
     height: 34,
-    backgroundColor: '#2a2a2a',
     borderRadius: 6,
     borderWidth: 2,
-    borderColor: '#4a4a4a',
     textAlign: 'center',
     fontSize: 13,
     fontWeight: '600',
-    color: '#ffffff',
     marginHorizontal: 8,
     paddingVertical: 0,
     overflow: 'hidden',
   },
   scoreInputCellFocused: {
-    borderColor: '#8b5cf6',
-    backgroundColor: '#3a2a4a',
-    shadowColor: '#8b5cf6',
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.3,
     shadowRadius: 4,
@@ -523,14 +575,12 @@ const styles = StyleSheet.create({
     width: 20,
     height: 20,
     borderRadius: 10,
-    backgroundColor: '#ef4444',
     justifyContent: 'center',
     alignItems: 'center',
   },
   minusIcon: {
     width: 10,
     height: 2,
-    backgroundColor: '#ffffff',
     borderRadius: 1,
   },
   colorIndicator: {
@@ -557,7 +607,6 @@ const styles = StyleSheet.create({
   placeholderCell: {
     opacity: 0.3,
     borderStyle: 'dashed',
-    borderColor: '#666',
     backgroundColor: 'transparent',
   },
 });

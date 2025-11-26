@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Game } from '../types';
+import { useTheme } from '../theme';
 
 interface GameCardProps {
   game: Game;
@@ -9,6 +10,7 @@ interface GameCardProps {
 }
 
 const GameCard: React.FC<GameCardProps> = ({ game, onPress, onLongPress }) => {
+  const { theme } = useTheme();
   const getWinner = (game: Game) => {
     let maxScore = -Infinity;
     let winner = null;
@@ -26,13 +28,13 @@ const GameCard: React.FC<GameCardProps> = ({ game, onPress, onLongPress }) => {
 
   return (
     <TouchableOpacity
-      style={styles.gameCard}
+      style={[styles.gameCard, { backgroundColor: theme.colors.background, borderColor: theme.colors.border }]}
       onPress={onPress}
       onLongPress={onLongPress}
     >
       <View style={styles.gameCardHeader}>
-        <Text style={styles.gameCardTitle}>{game.name}</Text>
-        <Text style={styles.gameCardDate}>
+        <Text style={[styles.gameCardTitle, { color: theme.colors.text }]}>{game.name}</Text>
+        <Text style={[styles.gameCardDate, { color: theme.colors.textSecondary }]}>
           {new Date(game.createdAt).toLocaleDateString('fr-FR', {
             day: '2-digit',
             month: '2-digit',
@@ -45,7 +47,7 @@ const GameCard: React.FC<GameCardProps> = ({ game, onPress, onLongPress }) => {
 
       <View style={styles.gameCardInfo}>
         <View style={styles.playersInfo}>
-          <Text style={styles.gameCardLabel}>Joueurs:</Text>
+          <Text style={[styles.gameCardLabel, { color: theme.colors.textSecondary }]}>Joueurs:</Text>
           <View style={styles.playerDots}>
             {game.players.map(player => (
               <View
@@ -54,24 +56,24 @@ const GameCard: React.FC<GameCardProps> = ({ game, onPress, onLongPress }) => {
               />
             ))}
           </View>
-          <Text style={styles.playerCount}>{game.players.length}</Text>
+          <Text style={[styles.playerCount, { color: theme.colors.primary }]}>{game.players.length}</Text>
         </View>
 
         {winner && (
           <View style={styles.winnerInfo}>
-            <Text style={styles.winnerLabel}>🏆 Gagnant:</Text>
+            <Text style={[styles.winnerLabel, { color: theme.colors.text }]}>🏆 Gagnant:</Text>
             <View
               style={[styles.winnerDot, { backgroundColor: winner.color }]}
             />
-            <Text style={styles.winnerName}>{winner.name}</Text>
-            <Text style={styles.winnerScore}>
+            <Text style={[styles.winnerName, { color: theme.colors.text }]}>{winner.name}</Text>
+            <Text style={[styles.winnerScore, { color: theme.colors.primary }]}>
               ({game.scores[winner.id]} pts)
             </Text>
           </View>
         )}
       </View>
 
-      <Text style={styles.loadHint}>
+      <Text style={[styles.loadHint, { color: theme.colors.textTertiary }]}>
         Appuyez pour charger • Maintenez pour supprimer
       </Text>
     </TouchableOpacity>
@@ -80,12 +82,10 @@ const GameCard: React.FC<GameCardProps> = ({ game, onPress, onLongPress }) => {
 
 const styles = StyleSheet.create({
   gameCard: {
-    backgroundColor: '#1a1a1a',
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: '#3a3a3a',
   },
   gameCardHeader: {
     flexDirection: 'row',
@@ -96,12 +96,10 @@ const styles = StyleSheet.create({
   gameCardTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#ffffff',
     flex: 1,
   },
   gameCardDate: {
     fontSize: 12,
-    color: '#a0a0a0',
     marginLeft: 8,
   },
   gameCardInfo: {
@@ -114,7 +112,6 @@ const styles = StyleSheet.create({
   },
   gameCardLabel: {
     fontSize: 14,
-    color: '#a0a0a0',
     marginRight: 8,
   },
   playerDots: {
@@ -129,7 +126,6 @@ const styles = StyleSheet.create({
   },
   playerCount: {
     fontSize: 14,
-    color: '#8b5cf6',
     fontWeight: '600',
   },
   winnerInfo: {
@@ -138,7 +134,6 @@ const styles = StyleSheet.create({
   },
   winnerLabel: {
     fontSize: 14,
-    color: '#ffffff',
     marginRight: 8,
   },
   winnerDot: {
@@ -149,18 +144,15 @@ const styles = StyleSheet.create({
   },
   winnerName: {
     fontSize: 14,
-    color: '#ffffff',
     fontWeight: '600',
     marginRight: 4,
   },
   winnerScore: {
     fontSize: 14,
-    color: '#8b5cf6',
     fontWeight: '600',
   },
   loadHint: {
     fontSize: 11,
-    color: '#666',
     textAlign: 'center',
     marginTop: 4,
     fontStyle: 'italic',
