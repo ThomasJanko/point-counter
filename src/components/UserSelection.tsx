@@ -96,8 +96,11 @@ const UserSelection: React.FC<UserSelectionProps> = ({
     : `Commencer la Partie (${playerCountLabel})`;
 
   return (
-    <View
+    <ScrollView
       style={[styles.container, { backgroundColor: theme.colors.background }]}
+      contentContainerStyle={styles.outerScrollContent}
+      keyboardShouldPersistTaps="handled"
+      showsVerticalScrollIndicator
     >
       <View style={styles.header}>
         <Text style={[styles.headerTitle, { color: theme.colors.text }]}>
@@ -255,7 +258,13 @@ const UserSelection: React.FC<UserSelectionProps> = ({
         </View>
       </View>
 
-      <ScrollView style={styles.userListContainer}>
+      <ScrollView
+        style={styles.userListScroll}
+        contentContainerStyle={styles.userListScrollContent}
+        keyboardShouldPersistTaps="handled"
+        nestedScrollEnabled
+        showsVerticalScrollIndicator
+      >
         {filteredUsers.length === 0 ? (
           <View style={styles.emptyState}>
             <Text
@@ -295,13 +304,19 @@ const UserSelection: React.FC<UserSelectionProps> = ({
           </Text>
         </TouchableOpacity>
       </View>
-    </View>
+    </ScrollView>
   );
 };
+
+const USER_LIST_MAX_HEIGHT = 400;
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  outerScrollContent: {
+    flexGrow: 1,
+    paddingBottom: 24,
   },
   header: {
     padding: 10,
@@ -417,10 +432,14 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
   },
-  userListContainer: {
-    flex: 1,
-    paddingHorizontal: 20,
+  userListScroll: {
+    maxHeight: USER_LIST_MAX_HEIGHT,
     marginTop: 6,
+    marginHorizontal: 20,
+  },
+  userListScrollContent: {
+    flexGrow: 1,
+    paddingBottom: 8,
   },
   userListWrapper: {
     flexDirection: 'row',
