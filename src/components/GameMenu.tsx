@@ -13,6 +13,7 @@ interface GameMenuProps {
   visible: boolean;
   onClose: () => void;
   onChangePlayers: () => void;
+  onModifyGame: () => void;
   onReset: () => void;
   onSave: () => void;
   onEndGame: () => void;
@@ -22,6 +23,7 @@ const GameMenu: React.FC<GameMenuProps> = ({
   visible,
   onClose,
   onChangePlayers,
+  onModifyGame,
   onReset,
   onSave,
   onEndGame,
@@ -59,6 +61,15 @@ const GameMenu: React.FC<GameMenuProps> = ({
             }}
           >
             <Text style={[styles.menuItemText, { color: theme.colors.text }]}>Changer les joueurs</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.menuItem}
+            onPress={() => {
+              onClose();
+              onModifyGame();
+            }}
+          >
+            <Text style={[styles.menuItemText, { color: theme.colors.text }]}>Modifier la partie</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.menuItem}

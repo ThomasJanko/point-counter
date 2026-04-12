@@ -16,6 +16,8 @@ interface UserSelectionProps {
   gameTitle: string;
   gameGoal: 'highest' | 'lowest';
   scoreLimit: number | null;
+  /** When true, user is editing an in-progress game (copy and primary action differ). */
+  isEditMode?: boolean;
   onGameTitleChange: (title: string) => void;
   onGameGoalChange: (goal: 'highest' | 'lowest') => void;
   onScoreLimitChange: (limit: number | null) => void;
@@ -30,6 +32,7 @@ const UserSelection: React.FC<UserSelectionProps> = ({
   gameTitle,
   gameGoal,
   scoreLimit,
+  isEditMode = false,
   onGameTitleChange,
   onGameGoalChange,
   onScoreLimitChange,
@@ -85,18 +88,27 @@ const UserSelection: React.FC<UserSelectionProps> = ({
     );
   };
 
+  const playerCountLabel = `${selectedUsers.length} joueur${
+    selectedUsers.length === 1 ? '' : 's'
+  }`;
+  const startButtonLabel = isEditMode
+    ? `Retour aux scores (${playerCountLabel})`
+    : `Commencer la Partie (${playerCountLabel})`;
+
   return (
     <View
       style={[styles.container, { backgroundColor: theme.colors.background }]}
     >
       <View style={styles.header}>
         <Text style={[styles.headerTitle, { color: theme.colors.text }]}>
-          Nouvelle Partie
+          {isEditMode ? 'Modifier la partie' : 'Nouvelle Partie'}
         </Text>
         <Text
           style={[styles.headerSubtitle, { color: theme.colors.textSecondary }]}
         >
-          Choisissez au moins 2 joueurs pour commencer la partie
+          {isEditMode
+            ? 'Ajustez le titre, la configuration ou les joueurs, puis revenez aux scores.'
+            : 'Choisissez au moins 2 joueurs pour commencer la partie'}
         </Text>
       </View>
 
@@ -279,8 +291,7 @@ const UserSelection: React.FC<UserSelectionProps> = ({
           <Text
             style={[styles.startGameButtonText, { color: theme.colors.text }]}
           >
-            Commencer la Partie ({selectedUsers.length} joueur
-            {selectedUsers.length === 1 ? '' : 's'})
+            {startButtonLabel}
           </Text>
         </TouchableOpacity>
       </View>

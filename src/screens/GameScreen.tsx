@@ -33,6 +33,7 @@ const GameScreen = () => {
   const [nextLineId, setNextLineId] = useState(1);
   const [focusedInput, setFocusedInput] = useState<string | null>(null);
   const [showMenu, setShowMenu] = useState(false);
+  const [editingGameSetup, setEditingGameSetup] = useState(false);
   const [showResultsModal, setShowResultsModal] = useState(false);
   const [currentGameId, setCurrentGameId] = useState<string | null>(null);
   const [gameGoal, setGameGoal] = useState<'highest' | 'lowest'>('highest');
@@ -156,6 +157,7 @@ const GameScreen = () => {
   };
 
   const loadSavedGame = (game: Game) => {
+    setEditingGameSetup(false);
     // Set game ID to track this loaded game
     setCurrentGameId(game.id);
 
@@ -243,6 +245,65 @@ const GameScreen = () => {
 
     // Hide the user selection screen
     setShowUserSelection(false);
+  };
+
+  const confirmEditGameSetup = () => {
+    if (selectedUsers.length < 2) {
+      Alert.alert(
+        'Erreur',
+        'Veuillez sélectionner au moins 2 joueurs pour continuer.',
+      );
+      return;
+    }
+    if (!gameTitle.trim()) {
+      Alert.alert('Erreur', 'Veuillez entrer un titre de partie.');
+      return;
+    }
+
+    const syncedLines: {
+      [lineId: string]: { [userId: string]: number | null };
+    } = {};
+    for (const [lineId, line] of Object.entries(scoreLines)) {
+      const newLine: { [userId: string]: number | null } = {};
+      selectedUsers.forEach(user => {
+        const prevVal = line[user.id];
+        newLine[user.id] = prevVal ?? null;
+      });
+      syncedLines[lineId] = newLine;
+    }
+
+    const newTotalScores: { [userId: string]: number } = {};
+    selectedUsers.forEach(user => {
+      newTotalScores[user.id] = Object.values(syncedLines).reduce(
+        (sum, line) => {
+          const lineValue = line[user.id];
+          if (lineValue !== null && lineValue !== undefined) {
+            const numValue = Number.parseFloat(lineValue.toString());
+            if (!Number.isNaN(numValue)) {
+              return sum + numValue;
+            }
+          }
+          return sum;
+        },
+        0,
+      );
+    });
+
+    setScoreLines(syncedLines);
+    setScores(newTotalScores);
+    setLimitReachedUsers(prev => {
+      const allowed = new Set(selectedUsers.map(u => u.id));
+      return new Set([...prev].filter(id => allowed.has(id)));
+    });
+    setEditingGameSetup(false);
+  };
+
+  const handleUserSelectionContinue = () => {
+    if (editingGameSetup) {
+      confirmEditGameSetup();
+    } else {
+      startGame();
+    }
   };
 
   const updateScoreInLine = (lineId: string, userId: string, value: string) => {
@@ -551,7 +612,11 @@ const GameScreen = () => {
       });
   };
 
-  if (selectedUsers.length === 0 || Object.keys(scoreLines).length === 0) {
+  if (
+    selectedUsers.length === 0 ||
+    Object.keys(scoreLines).length === 0 ||
+    editingGameSetup
+  ) {
     return (
       <UserSelection
         users={users}
@@ -559,11 +624,12 @@ const GameScreen = () => {
         gameTitle={gameTitle}
         gameGoal={gameGoal}
         scoreLimit={scoreLimit}
+        isEditMode={editingGameSetup}
         onGameTitleChange={setGameTitle}
         onGameGoalChange={setGameGoal}
         onScoreLimitChange={setScoreLimit}
         onUserToggle={handleUserToggle}
-        onStartGame={startGame}
+        onStartGame={handleUserSelectionContinue}
         onAddUser={() => navigation.navigate('AddUser')}
       />
     );
@@ -647,6 +713,7 @@ const GameScreen = () => {
         visible={showMenu}
         onClose={() => setShowMenu(false)}
         onChangePlayers={() => setShowUserSelection(true)}
+        onModifyGame={() => setEditingGameSetup(true)}
         onReset={resetScores}
         onSave={saveGame}
         onEndGame={endGame}
