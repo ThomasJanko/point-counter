@@ -22,6 +22,17 @@ interface ResultsModalProps {
   onClose: () => void;
 }
 
+function getCompetitionRank(
+  players: PlayerWithScore[],
+  gameGoal: 'highest' | 'lowest',
+  playerScore: number,
+): number {
+  const strictlyBetter = players.filter(p =>
+    gameGoal === 'highest' ? p.score > playerScore : p.score < playerScore,
+  ).length;
+  return strictlyBetter + 1;
+}
+
 const ResultsModal: React.FC<ResultsModalProps> = ({
   visible,
   rankedPlayers,
@@ -30,6 +41,20 @@ const ResultsModal: React.FC<ResultsModalProps> = ({
   onClose,
 }) => {
   const { theme } = useTheme();
+
+  const rankLabel = (rank: number) => {
+    if (rank === 1) {
+      return '🥇';
+    }
+    if (rank === 2) {
+      return '🥈';
+    }
+    if (rank === 3) {
+      return '🥉';
+    }
+    return `${rank}.`;
+  };
+
   return (
     <Modal visible={visible} animationType="slide" transparent={true}>
       <View style={[styles.resultsModalOverlay, { backgroundColor: theme.colors.overlay }]}>
@@ -49,14 +74,13 @@ const ResultsModal: React.FC<ResultsModalProps> = ({
           )}
 
           <ScrollView style={styles.rankingList}>
-            {rankedPlayers.map((player, index) => (
+            {rankedPlayers.map(player => {
+              const rank = getCompetitionRank(rankedPlayers, gameGoal, player.score);
+              return (
               <View key={player.id} style={[styles.rankingItem, { backgroundColor: theme.colors.background, borderColor: theme.colors.border }]}>
                 <View style={styles.rankingLeft}>
                   <Text style={styles.rankingPosition}>
-                    {index === 0 && '🥇'}
-                    {index === 1 && '🥈'}
-                    {index === 2 && '🥉'}
-                    {index > 2 && `${index + 1}.`}
+                    {rankLabel(rank)}
                   </Text>
                   <View
                     style={[
@@ -68,7 +92,8 @@ const ResultsModal: React.FC<ResultsModalProps> = ({
                 </View>
                 <Text style={[styles.rankingScore, { color: theme.colors.primary }]}>{player.score} pts</Text>
               </View>
-            ))}
+            );
+            })}
           </ScrollView>
 
           <Text style={[styles.savedMessage, { color: theme.colors.success }]}>
