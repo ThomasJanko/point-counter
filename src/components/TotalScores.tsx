@@ -6,12 +6,14 @@ import { useTheme } from '../theme';
 interface TotalScoresProps {
   selectedUsers: User[];
   scores: { [userId: string]: number };
+  gameGoal: 'highest' | 'lowest';
   focusedInput?: string | null;
 }
 
 const TotalScores: React.FC<TotalScoresProps> = ({
   selectedUsers,
   scores,
+  gameGoal,
   focusedInput: _focusedInput,
 }) => {
   const { theme } = useTheme();
@@ -19,11 +21,20 @@ const TotalScores: React.FC<TotalScoresProps> = ({
     return name.length > 15 ? name.slice(0, 15) + '...' : name;
   };
 
+  const usersByStanding = [...selectedUsers].sort((a, b) => {
+    const scoreA = scores[a.id] ?? 0;
+    const scoreB = scores[b.id] ?? 0;
+    if (gameGoal === 'highest') {
+      return scoreB - scoreA;
+    }
+    return scoreA - scoreB;
+  });
+
   return (
     <View style={[styles.totalScoresContainer, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
       <Text style={[styles.totalScoresTitle, { color: theme.colors.text }]}>Totaux</Text>
       <View style={styles.totalScoresGrid}>
-        {selectedUsers.map(user => (
+        {usersByStanding.map(user => (
           <View key={user.id} style={[styles.totalScoreItem, { backgroundColor: theme.colors.background }]}>
             <View
               style={[styles.colorIndicator, { backgroundColor: user.color }]}

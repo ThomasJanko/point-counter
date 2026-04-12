@@ -618,6 +618,7 @@ const GameScreen = () => {
       <TotalScores
         selectedUsers={selectedUsers}
         scores={scores}
+        gameGoal={gameGoal}
         focusedInput={focusedInput}
       />
 
