@@ -8,7 +8,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import type { NavigationProp } from '@react-navigation/native';
 import { StatusBar, TouchableOpacity, Text, StyleSheet } from 'react-native';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 
 // Theme
 import { ThemeProvider, useTheme } from './src/theme';
@@ -120,7 +120,9 @@ function App() {
   return (
     <SafeAreaProvider>
       <ThemeProvider>
-        <AppNavigator />
+        <SafeAreaView edges={['bottom']} style={{ flex: 1 }}>
+          <AppNavigator />
+        </SafeAreaView>
       </ThemeProvider>
     </SafeAreaProvider>
   );
