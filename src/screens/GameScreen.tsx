@@ -15,6 +15,7 @@ import TotalScores from '../components/TotalScores';
 import GameMenu from '../components/GameMenu';
 import ResultsModal from '../components/ResultsModal';
 import UserSelectionModal from '../components/UserSelectionModal';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 const GameScreen = () => {
   const navigation = useNavigation<NavigationProp<any>>();
@@ -636,7 +637,8 @@ const GameScreen = () => {
   }
 
   return (
-    <View
+    <SafeAreaView
+      edges={['bottom']}
       style={[styles.container, { backgroundColor: theme.colors.background }]}
     >
       <View style={styles.gameHeader}>
@@ -729,7 +731,7 @@ const GameScreen = () => {
           navigation.goBack();
         }}
       />
-    </View>
+    </SafeAreaView>
   );
 };
 
