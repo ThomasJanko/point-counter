@@ -109,11 +109,7 @@ const HomeScreen = () => {
 
         <StatsCard userCount={userCount} />
 
-        <ActionButtons
-          userCount={userCount}
-          onStartGame={handleStartGame}
-          navigation={navigation}
-        />
+        <ActionButtons onStartGame={handleStartGame} navigation={navigation} />
 
         <GameHistory
           games={games}

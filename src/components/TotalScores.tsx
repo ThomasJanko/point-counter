@@ -2,7 +2,6 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { User } from '../types';
 import { useTheme } from '../theme';
-import { SafeAreaView } from 'react-native-safe-area-context';
 
 interface TotalScoresProps {
   selectedUsers: User[];
@@ -32,7 +31,7 @@ const TotalScores: React.FC<TotalScoresProps> = ({
   });
 
   return (
-    <SafeAreaView edges={['bottom']} style={[styles.totalScoresContainer, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
+    <View style={[styles.totalScoresContainer, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
       <Text style={[styles.totalScoresTitle, { color: theme.colors.text }]}>Totaux</Text>
       <View style={styles.totalScoresGrid}>
         {usersByStanding.map(user => (
@@ -47,7 +46,7 @@ const TotalScores: React.FC<TotalScoresProps> = ({
           </View>
         ))}
       </View>
-    </SafeAreaView>
+    </View>
   );
 };
 

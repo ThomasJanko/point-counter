@@ -4,13 +4,11 @@ import { NavigationProp } from '@react-navigation/native';
 import { useTheme } from '../theme';
 
 interface ActionButtonsProps {
-  userCount: number;
   onStartGame: () => void;
   navigation: NavigationProp<any>;
 }
 
 const ActionButtons: React.FC<ActionButtonsProps> = ({
-  userCount,
   onStartGame,
   navigation,
 }) => {
@@ -25,7 +23,11 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
       </TouchableOpacity>
 
       <TouchableOpacity
-        style={[styles.button, { borderWidth: 2, borderColor: theme.colors.primary }]}
+        style={[
+          styles.button,
+          styles.secondaryButton,
+          { borderColor: theme.colors.primary },
+        ]}
         onPress={() => navigation.navigate('UserManagement')}
       >
         <Text style={[styles.secondaryButtonText, { color: theme.colors.primary }]}>Gérer les Utilisateurs</Text>
@@ -45,6 +47,9 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     alignItems: 'center',
     backgroundColor: 'transparent',
+  },
+  secondaryButton: {
+    borderWidth: 2,
   },
   buttonText: {
     fontSize: 18,
