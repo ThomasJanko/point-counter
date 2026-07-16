@@ -8,13 +8,17 @@ import {
   Alert,
   RefreshControl,
 } from 'react-native';
-import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import {
+  useNavigation,
+  useFocusEffect,
+  NavigationProp,
+} from '@react-navigation/native';
 import { storageService } from '../services/storageService';
 import { User } from '../types';
 import { useTheme } from '../theme';
 
 const UserManagementScreen = () => {
-  const navigation = useNavigation();
+  const navigation = useNavigation<NavigationProp<any>>();
   const { theme } = useTheme();
   const [users, setUsers] = useState<User[]>([]);
   const [refreshing, setRefreshing] = useState(false);
@@ -148,8 +152,10 @@ const styles = StyleSheet.create({
   },
   addButton: {
     paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingVertical: 12,
     borderRadius: 8,
+    minHeight: 44,
+    justifyContent: 'center',
   },
   addButtonText: {
     fontWeight: '600',
@@ -186,10 +192,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
   },
   actionButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
     borderRadius: 6,
     marginLeft: 8,
+    minHeight: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   editButtonText: {
     fontSize: 12,

@@ -8,10 +8,14 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import type { NavigationProp } from '@react-navigation/native';
 import { StatusBar, TouchableOpacity, Text, StyleSheet } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 
 // Theme
 import { ThemeProvider, useTheme } from './src/theme';
+
+// Error handling
+import ErrorBoundary from './src/components/ErrorBoundary';
 
 // Screens
 import HomeScreen from './src/screens/HomeScreen';
@@ -46,6 +50,15 @@ const headerStyles = StyleSheet.create({
   },
   buttonText: {
     fontSize: 24,
+  },
+});
+
+const styles = StyleSheet.create({
+  gestureRoot: {
+    flex: 1,
+  },
+  flexOne: {
+    flex: 1,
   },
 });
 
@@ -118,13 +131,20 @@ function AppNavigator() {
 
 function App() {
   return (
-    <SafeAreaProvider>
-      <ThemeProvider>
-        <SafeAreaView edges={['bottom']} style={{ flex: 1 }}>
-          <AppNavigator />
-        </SafeAreaView>
-      </ThemeProvider>
-    </SafeAreaProvider>
+    <GestureHandlerRootView style={styles.gestureRoot}>
+      <ErrorBoundary>
+        <SafeAreaProvider>
+          <ThemeProvider>
+            {/* Single source of truth for the bottom safe-area inset (gesture
+                bar / nav bar). Do not add another edges=['bottom'] SafeAreaView
+                further down the tree, or the inset gets applied multiple times. */}
+            <SafeAreaView edges={['bottom']} style={styles.flexOne}>
+              <AppNavigator />
+            </SafeAreaView>
+          </ThemeProvider>
+        </SafeAreaProvider>
+      </ErrorBoundary>
+    </GestureHandlerRootView>
   );
 }
 

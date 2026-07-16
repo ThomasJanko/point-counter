@@ -7,6 +7,7 @@ import {
   TextInput,
   ScrollView,
   Animated,
+  findNodeHandle,
 } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { User } from '../types';
@@ -14,7 +15,8 @@ import { useTheme } from '../theme';
 
 interface ScoreTableProps {
   selectedUsers: User[];
-  scoreLines: { [lineId: string]: { [userId: string]: number | null } };
+  /** Raw string per cell; '' means "not entered yet". */
+  scoreLines: Record<string, Record<string, string>>;
   focusedInput: string | null;
   scoreLimit: number | null;
   onScoreChange: (lineId: string, userId: string, value: string) => void;
@@ -37,6 +39,7 @@ const ScoreTable: React.FC<ScoreTableProps> = ({
 }) => {
   const { theme } = useTheme();
   const inputRefs = useRef<{ [key: string]: TextInput | null }>({});
+  const rowsScrollRef = useRef<ScrollView>(null);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [targetIndex, setTargetIndex] = useState<number | null>(null);
   const draggedIndexRef = useRef<number | null>(null);
@@ -45,15 +48,37 @@ const ScoreTable: React.FC<ScoreTableProps> = ({
   const columnShifts = useRef<{ [key: number]: Animated.Value }>({});
 
   const handleScoreChange = (lineId: string, userId: string, value: string) => {
-    console.log('handleScoreChange', lineId, userId, value);
     // Remove leading zeros (e.g., "065" -> "65", "034" -> "34")
     // But keep "0" if the value is just "0"
     let cleanedValue = value;
     if (cleanedValue.length > 1 && cleanedValue.startsWith('0')) {
       cleanedValue = cleanedValue.replace(/^0+/, '') || '0';
     }
-    console.log('cleanedValue', cleanedValue);
     onScoreChange(lineId, userId, cleanedValue);
+  };
+
+  // Android doesn't auto-scroll a focused TextInput above the keyboard the
+  // way iOS does. Without this, score inputs on the lower rows of the table
+  // get hidden behind the keyboard once it opens.
+  const scrollFocusedInputIntoView = (inputKey: string) => {
+    const input = inputRefs.current[inputKey];
+    const scrollView = rowsScrollRef.current;
+    if (!input || !scrollView) return;
+
+    // Wait a frame so the keyboard has started opening and layout settled.
+    requestAnimationFrame(() => {
+      const scrollNode = findNodeHandle(scrollView);
+      if (!scrollNode) return;
+      input.measureLayout(
+        scrollNode,
+        (_x: number, y: number, _width: number) => {
+          scrollView.scrollTo({ y: Math.max(0, y - 60), animated: true });
+        },
+        () => {
+          // Measurement can fail transiently during layout; ignore.
+        },
+      );
+    });
   };
 
   const focusNextInput = (currentLineId: string, currentUserId: string) => {
@@ -351,9 +376,11 @@ const ScoreTable: React.FC<ScoreTableProps> = ({
 
             {/* Score Lines - Scrollable */}
             <ScrollView
+              ref={rowsScrollRef}
               style={styles.scrollableRows}
               nestedScrollEnabled={true}
               showsVerticalScrollIndicator={true}
+              keyboardShouldPersistTaps="handled"
             >
               {Object.entries(scoreLines).map(
                 ([lineId, lineScores], lineIndex) => (
@@ -398,18 +425,16 @@ const ScoreTable: React.FC<ScoreTableProps> = ({
                               },
                             ],
                           ]}
-                          value={
-                            lineScores[user.id] == null
-                              ? ''
-                              : lineScores[user.id]?.toString() || ''
-                          }
+                          value={lineScores[user.id] ?? ''}
                           onChangeText={value =>
                             handleScoreChange(lineId, user.id, value)
                           }
-                          onFocus={() => onInputFocus(inputKey)}
+                          onFocus={() => {
+                            onInputFocus(inputKey);
+                            scrollFocusedInputIntoView(inputKey);
+                          }}
                           onBlur={() => onInputBlur(user.id)}
                           onSubmitEditing={() => {
-                            console.log('onSubmitEditing', lineId, user.id);
                             focusNextInput(lineId, user.id);
                           }}
                           keyboardType="numeric"
@@ -559,11 +584,12 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 0 },
   },
   deleteLineButton: {
-    width: 35,
-    height: 34,
+    width: 44,
+    height: 44,
     justifyContent: 'center',
     alignItems: 'center',
-    marginLeft: 10,
+    marginLeft: 4,
+    marginRight: -6,
   },
   minusIconContainer: {
     width: 20,

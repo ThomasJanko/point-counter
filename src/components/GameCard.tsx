@@ -11,11 +11,11 @@ interface GameCardProps {
 
 const GameCard: React.FC<GameCardProps> = ({ game, onPress, onLongPress }) => {
   const { theme } = useTheme();
-  const getWinner = (game: Game) => {
+  const getWinner = (targetGame: Game) => {
     let maxScore = -Infinity;
     let winner = null;
-    for (const player of game.players) {
-      const score = game.scores[player.id] || 0;
+    for (const player of targetGame.players) {
+      const score = targetGame.scores[player.id] || 0;
       if (score > maxScore) {
         maxScore = score;
         winner = player;

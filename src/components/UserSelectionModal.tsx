@@ -8,8 +8,11 @@ import {
   Alert,
   Modal,
   TextInput,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { User } from '../types';
+import { useTheme } from '../theme';
 
 interface UserSelectionModalProps {
   visible: boolean;
@@ -30,6 +33,7 @@ const UserSelectionModal: React.FC<UserSelectionModalProps> = ({
   onConfirm,
   onAddUser,
 }) => {
+  const { theme } = useTheme();
   const [searchQuery, setSearchQuery] = useState('');
 
   // Filter users based on search query
@@ -48,7 +52,11 @@ const UserSelectionModal: React.FC<UserSelectionModalProps> = ({
       <TouchableOpacity
         style={[
           styles.userSelectionItem,
-          isSelected && styles.selectedUserItem,
+          {
+            backgroundColor: theme.colors.card,
+            borderColor: isSelected ? theme.colors.primary : theme.colors.border,
+          },
+          isSelected && { backgroundColor: theme.colors.primaryBackground },
         ]}
         onPress={() => onUserToggle(item)}
         activeOpacity={0.7}
@@ -57,9 +65,15 @@ const UserSelectionModal: React.FC<UserSelectionModalProps> = ({
           <View
             style={[styles.colorIndicator, { backgroundColor: item.color }]}
           />
-          <Text style={styles.userSelectionName}>{item.name}</Text>
+          <Text style={[styles.userSelectionName, { color: theme.colors.text }]}>
+            {item.name}
+          </Text>
         </View>
-        {isSelected && <Text style={styles.checkmark}>✓</Text>}
+        {isSelected && (
+          <Text style={[styles.checkmark, { color: theme.colors.primary }]}>
+            ✓
+          </Text>
+        )}
       </TouchableOpacity>
     );
   };
@@ -73,26 +87,65 @@ const UserSelectionModal: React.FC<UserSelectionModalProps> = ({
   };
 
   return (
-    <Modal visible={visible} animationType="slide" transparent={true}>
-      <View style={styles.modalContainer}>
-        <View style={styles.modalContent}>
+    <Modal
+      visible={visible}
+      animationType="slide"
+      transparent={true}
+      onRequestClose={onClose}
+    >
+      <KeyboardAvoidingView
+        style={styles.modalContainer}
+        // Native <Modal> renders in its own Android window, so it doesn't
+        // benefit from the activity's windowSoftInputMode="adjustResize" —
+        // it needs its own keyboard handling to avoid the search input
+        // getting covered.
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+        <View
+          style={[
+            styles.modalContent,
+            {
+              backgroundColor: theme.colors.card,
+              shadowColor: theme.colors.shadow,
+            },
+          ]}
+        >
           <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Sélectionner les Joueurs</Text>
+            <Text style={[styles.modalTitle, { color: theme.colors.text }]}>
+              Sélectionner les Joueurs
+            </Text>
             <View style={styles.headerActions}>
               <View style={styles.searchContainer}>
                 <TextInput
-                  style={styles.searchInput}
+                  style={[
+                    styles.searchInput,
+                    {
+                      backgroundColor: theme.colors.background,
+                      borderColor: theme.colors.border,
+                      color: theme.colors.text,
+                    },
+                  ]}
                   value={searchQuery}
                   onChangeText={setSearchQuery}
                   placeholder="Rechercher..."
-                  placeholderTextColor="#666"
+                  placeholderTextColor={theme.colors.placeholder}
                 />
               </View>
               <TouchableOpacity
-                style={styles.modalAddUserButton}
+                style={[
+                  styles.modalAddUserButton,
+                  { backgroundColor: theme.colors.primary },
+                ]}
                 onPress={onAddUser}
               >
-                <Text style={styles.modalAddUserButtonText}>+ Nouveau</Text>
+                <Text
+                  style={[
+                    styles.modalAddUserButtonText,
+                    { color: theme.colors.text },
+                  ]}
+                >
+                  + Nouveau
+                </Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -104,9 +157,15 @@ const UserSelectionModal: React.FC<UserSelectionModalProps> = ({
             contentContainerStyle={styles.modalUserList}
             nestedScrollEnabled={true}
             scrollEnabled={true}
+            keyboardShouldPersistTaps="handled"
             ListEmptyComponent={
               <View style={styles.emptyState}>
-                <Text style={styles.emptyStateText}>
+                <Text
+                  style={[
+                    styles.emptyStateText,
+                    { color: theme.colors.textTertiary },
+                  ]}
+                >
                   {searchQuery
                     ? 'Aucun joueur trouvé'
                     : 'Aucun joueur disponible'}
@@ -116,20 +175,40 @@ const UserSelectionModal: React.FC<UserSelectionModalProps> = ({
           />
           <View style={styles.modalButtons}>
             <TouchableOpacity
-              style={styles.modalCancelButton}
+              style={[
+                styles.modalCancelButton,
+                { borderColor: theme.colors.textTertiary },
+              ]}
               onPress={onClose}
             >
-              <Text style={styles.modalCancelButtonText}>Annuler</Text>
+              <Text
+                style={[
+                  styles.modalCancelButtonText,
+                  { color: theme.colors.textTertiary },
+                ]}
+              >
+                Annuler
+              </Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={styles.modalConfirmButton}
+              style={[
+                styles.modalConfirmButton,
+                { backgroundColor: theme.colors.primary },
+              ]}
               onPress={handleConfirm}
             >
-              <Text style={styles.modalConfirmButtonText}>Confirmer</Text>
+              <Text
+                style={[
+                  styles.modalConfirmButtonText,
+                  { color: theme.colors.text },
+                ]}
+              >
+                Confirmer
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 };
@@ -137,16 +216,19 @@ const UserSelectionModal: React.FC<UserSelectionModalProps> = ({
 const styles = StyleSheet.create({
   modalContainer: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   modalContent: {
-    backgroundColor: '#2a2a2a',
     borderRadius: 16,
     padding: 20,
     width: '90%',
     maxHeight: '80%',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
   },
   modalHeader: {
     marginBottom: 20,
@@ -154,7 +236,6 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#ffffff',
     marginBottom: 10,
   },
   headerActions: {
@@ -166,25 +247,20 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   searchInput: {
-    backgroundColor: '#2a2a2a',
     borderRadius: 6,
     padding: 8,
     fontSize: 14,
-    color: '#ffffff',
     borderWidth: 1,
-    borderColor: '#3a3a3a',
-    height: 36,
+    height: 40,
   },
   modalAddUserButton: {
-    backgroundColor: '#8b5cf6',
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 6,
-    height: 36,
+    height: 40,
     justifyContent: 'center',
   },
   modalAddUserButtonText: {
-    color: '#ffffff',
     fontSize: 12,
     fontWeight: '600',
   },
@@ -198,23 +274,17 @@ const styles = StyleSheet.create({
   },
   emptyStateText: {
     fontSize: 16,
-    color: '#666',
     textAlign: 'center',
   },
   userSelectionItem: {
-    backgroundColor: '#2a2a2a',
     borderRadius: 8,
     padding: 10,
     marginBottom: 8,
+    minHeight: 44,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     borderWidth: 1,
-    borderColor: '#3a3a3a',
-  },
-  selectedUserItem: {
-    borderColor: '#8b5cf6',
-    backgroundColor: '#2a1a3a',
   },
   userSelectionInfo: {
     flexDirection: 'row',
@@ -223,7 +293,6 @@ const styles = StyleSheet.create({
   },
   userSelectionName: {
     fontSize: 14,
-    color: '#ffffff',
     fontWeight: '500',
     marginLeft: 8,
   },
@@ -233,7 +302,6 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   checkmark: {
-    color: '#8b5cf6',
     fontSize: 20,
     fontWeight: 'bold',
   },
@@ -245,27 +313,27 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: 'transparent',
     borderWidth: 2,
-    borderColor: '#6b7280',
     borderRadius: 8,
     padding: 12,
     alignItems: 'center',
     marginRight: 8,
+    minHeight: 44,
+    justifyContent: 'center',
   },
   modalCancelButtonText: {
-    color: '#6b7280',
     fontSize: 16,
     fontWeight: '600',
   },
   modalConfirmButton: {
     flex: 1,
-    backgroundColor: '#8b5cf6',
     borderRadius: 8,
     padding: 12,
     alignItems: 'center',
     marginLeft: 8,
+    minHeight: 44,
+    justifyContent: 'center',
   },
   modalConfirmButtonText: {
-    color: '#ffffff',
     fontSize: 16,
     fontWeight: '600',
   },

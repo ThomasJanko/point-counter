@@ -1,9 +1,6 @@
 import React, { useState, useCallback, useMemo } from 'react';
-import { View, Text, StyleSheet, Dimensions, PanResponder } from 'react-native';
+import { View, StyleSheet, PanResponder, useWindowDimensions } from 'react-native';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const PICKER_SIZE = Math.min(SCREEN_WIDTH - 80, 280);
-const HUE_BAR_WIDTH = PICKER_SIZE;
 const HUE_BAR_HEIGHT = 30;
 
 interface ColorPickerProps {
@@ -12,6 +9,9 @@ interface ColorPickerProps {
 }
 
 const ColorPicker: React.FC<ColorPickerProps> = ({ color, onColorChange }) => {
+  const { width: screenWidth } = useWindowDimensions();
+  const PICKER_SIZE = Math.min(screenWidth - 80, 280);
+  const HUE_BAR_WIDTH = PICKER_SIZE;
   const [hue, setHue] = useState(270);
   const [saturation, setSaturation] = useState(100);
   const [lightness, setLightness] = useState(50);
@@ -121,7 +121,7 @@ const ColorPicker: React.FC<ColorPickerProps> = ({ color, onColorChange }) => {
           setLightness(newLightness);
         },
       }),
-    [],
+    [PICKER_SIZE],
   );
 
   // Handle hue bar touch
@@ -147,7 +147,7 @@ const ColorPicker: React.FC<ColorPickerProps> = ({ color, onColorChange }) => {
           setHue(newHue);
         },
       }),
-    [],
+    [HUE_BAR_WIDTH],
   );
 
   // Render color square with a simpler approach
@@ -184,7 +184,10 @@ const ColorPicker: React.FC<ColorPickerProps> = ({ color, onColorChange }) => {
     }
 
     return (
-      <View style={styles.colorSquare} {...squarePanResponder.panHandlers}>
+      <View
+        style={[styles.colorSquare, { width: PICKER_SIZE, height: PICKER_SIZE }]}
+        {...squarePanResponder.panHandlers}
+      >
         {cells}
         {/* Indicator */}
         <View
@@ -225,7 +228,10 @@ const ColorPicker: React.FC<ColorPickerProps> = ({ color, onColorChange }) => {
     }
 
     return (
-      <View style={styles.hueBar} {...huePanResponder.panHandlers}>
+      <View
+        style={[styles.hueBar, { width: HUE_BAR_WIDTH }]}
+        {...huePanResponder.panHandlers}
+      >
         <View style={styles.hueGradient}>{segments}</View>
         {/* Hue indicator */}
         <View
@@ -272,8 +278,6 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   colorSquare: {
-    width: PICKER_SIZE,
-    height: PICKER_SIZE,
     borderRadius: 12,
     borderWidth: 2,
     borderColor: '#3a3a3a',
@@ -300,7 +304,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   hueBar: {
-    width: HUE_BAR_WIDTH,
     height: HUE_BAR_HEIGHT,
     borderRadius: 15,
     borderWidth: 2,
