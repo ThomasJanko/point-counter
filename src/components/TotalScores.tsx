@@ -1,5 +1,10 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
+// Same ScrollView as ScoreTable's vertical rows: GameScreen wraps the
+// screen in TouchableWithoutFeedback (keyboard dismiss), which steals
+// pan gestures from RN's core ScrollView. gesture-handler's native
+// recognizer wins that arbitration.
+import { ScrollView } from 'react-native-gesture-handler';
 import { User } from '../types';
 import { useTheme } from '../theme';
 import { FONTS, tabularNums } from '../theme/types';
@@ -10,7 +15,7 @@ interface TotalScoresProps {
   gameGoal: 'highest' | 'lowest';
 }
 
-const MAX_HEIGHT = 148;
+const MAX_HEIGHT = 100;
 
 const TotalScores: React.FC<TotalScoresProps> = ({ selectedUsers, scores, gameGoal }) => {
   const { theme } = useTheme();
@@ -26,14 +31,12 @@ const TotalScores: React.FC<TotalScoresProps> = ({ selectedUsers, scores, gameGo
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.surface, borderTopColor: theme.colors.primary }]}>
       <Text style={[styles.totalLabel, { color: theme.colors.textSecondary }]}>TOTAL</Text>
-      {/* Capped height with its own scroll once the chips overflow it,
-          rather than letting the totals area grow and push the rest of the
-          screen (score table / footer) around indefinitely. */}
       <ScrollView
         style={styles.scrollArea}
         contentContainerStyle={styles.chipsWrap}
-        showsVerticalScrollIndicator={false}
         nestedScrollEnabled
+        showsVerticalScrollIndicator
+        keyboardShouldPersistTaps="handled"
       >
         {rankedUsers.map(user => (
           <View
@@ -70,7 +73,7 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   scrollArea: {
-    maxHeight: MAX_HEIGHT,
+    height: MAX_HEIGHT,
   },
   chipsWrap: {
     flexDirection: 'row',
