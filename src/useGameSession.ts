@@ -87,7 +87,8 @@ type Action =
   | { type: 'RESET_SCORES' }
   | { type: 'MARK_LIMIT_REACHED'; userId: string }
   | { type: 'LOAD_SAVED_GAME'; game: Game }
-  | { type: 'SET_CURRENT_GAME_ID'; id: string };
+  | { type: 'SET_CURRENT_GAME_ID'; id: string }
+  | { type: 'RESTART_KEEP_PLAYERS' };
 
 function reducer(
   state: GameSessionState,
@@ -203,6 +204,21 @@ function reducer(
       return {
         ...state,
         limitReachedUsers: { ...state.limitReachedUsers, [action.userId]: true },
+      };
+
+    case 'RESTART_KEEP_PLAYERS':
+      // Used by the "Rejouer" flow after a game ends: keep the same
+      // players and goal, but clear title/limit/scores and route back to
+      // the setup screen (scoreLines becomes empty, which is what
+      // GameScreen checks to decide whether to show UserSelection).
+      return {
+        ...state,
+        gameTitle: '',
+        scoreLimit: null,
+        scoreLines: {},
+        limitReachedUsers: {},
+        currentGameId: null,
+        editingGameSetup: false,
       };
 
     case 'SET_CURRENT_GAME_ID':

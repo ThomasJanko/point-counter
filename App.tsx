@@ -1,13 +1,12 @@
 /**
- * Point Counter App
- * A React Native app for counting points in games
+ * Tablée
+ * A React Native app for counting points during board game nights
  */
 
 import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
-import { createStackNavigator } from '@react-navigation/stack';
-import type { NavigationProp } from '@react-navigation/native';
-import { StatusBar, TouchableOpacity, Text, StyleSheet } from 'react-native';
+import { createStackNavigator, TransitionPresets } from '@react-navigation/stack';
+import { StatusBar, StyleSheet } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 
@@ -26,32 +25,6 @@ import GameScreen from './src/screens/GameScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
 
 const Stack = createStackNavigator();
-
-// Header right component for Settings button
-const SettingsHeaderButton = ({
-  navigation,
-}: {
-  navigation: NavigationProp<any>;
-}) => {
-  return (
-    <TouchableOpacity
-      onPress={() => navigation.navigate('Settings')}
-      style={headerStyles.button}
-    >
-      <Text style={headerStyles.buttonText}>⚙️</Text>
-    </TouchableOpacity>
-  );
-};
-
-const headerStyles = StyleSheet.create({
-  button: {
-    marginRight: 16,
-    padding: 8,
-  },
-  buttonText: {
-    fontSize: 24,
-  },
-});
 
 const styles = StyleSheet.create({
   gestureRoot: {
@@ -74,56 +47,41 @@ function AppNavigator() {
       <Stack.Navigator
         initialRouteName="Home"
         screenOptions={{
-          headerStyle: {
-            backgroundColor: theme.colors.background,
-          },
-          headerTintColor: theme.colors.primary,
-          headerTitleStyle: {
-            fontWeight: 'bold',
-            fontSize: 20,
-            color: theme.colors.text,
-          },
+          // Every screen builds its own in-content header (back button,
+          // title, action icons) to match the reference design, so the
+          // native stack header is hidden globally.
+          headerShown: false,
           cardStyle: {
             backgroundColor: theme.colors.background,
           },
         }}
       >
-        <Stack.Screen
-          name="Home"
-          component={HomeScreen}
-          options={({ navigation }) => ({
-            title: 'Compteur de Points',
-            headerRight: () => <SettingsHeaderButton navigation={navigation} />,
-          })}
-        />
-        <Stack.Screen
-          name="UserManagement"
-          component={UserManagementScreen}
-          options={{ title: 'Gérer les Utilisateurs' }}
-        />
+        <Stack.Screen name="Home" component={HomeScreen} />
+        <Stack.Screen name="UserManagement" component={UserManagementScreen} />
         <Stack.Screen
           name="AddUser"
           component={AddUserScreen}
-          options={{ title: 'Ajouter un Utilisateur' }}
+          options={{
+            presentation: 'transparentModal',
+            cardStyle: { backgroundColor: 'transparent' },
+            cardOverlayEnabled: true,
+            // Drawer/bottom-sheet feel: slides up from the bottom edge
+            // instead of the default fade/scale modal transition.
+            ...TransitionPresets.ModalSlideFromBottomIOS,
+          }}
         />
         <Stack.Screen
           name="EditUser"
           component={EditUserScreen}
-          options={{ title: "Modifier l'Utilisateur" }}
+          options={{
+            presentation: 'transparentModal',
+            cardStyle: { backgroundColor: 'transparent' },
+            cardOverlayEnabled: true,
+            ...TransitionPresets.ModalSlideFromBottomIOS,
+          }}
         />
-        <Stack.Screen
-          name="Game"
-          component={GameScreen}
-          options={({ navigation }) => ({
-            title: 'Nouvelle Partie',
-            headerRight: () => <SettingsHeaderButton navigation={navigation} />,
-          })}
-        />
-        <Stack.Screen
-          name="Settings"
-          component={SettingsScreen}
-          options={{ title: 'Paramètres' }}
-        />
+        <Stack.Screen name="Game" component={GameScreen} />
+        <Stack.Screen name="Settings" component={SettingsScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );

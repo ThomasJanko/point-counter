@@ -6,7 +6,7 @@ import React, {
   ReactNode,
 } from 'react';
 import { useColorScheme } from 'react-native';
-import { Theme, ThemeMode } from './types';
+import { Theme, ThemeMode, DEFAULT_ACCENT } from './types';
 import { createTheme } from './themes';
 import { storageService } from '../services/storageService';
 
@@ -29,7 +29,7 @@ interface ThemeProviderProps {
 
 export const ThemeProvider: React.FC<ThemeProviderProps> = ({
   children,
-  initialPrimaryColor = '#8b5cf6',
+  initialPrimaryColor = DEFAULT_ACCENT,
   initialMode = 'auto',
 }) => {
   const systemColorScheme = useColorScheme();

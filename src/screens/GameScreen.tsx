@@ -1,5 +1,5 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, StyleSheet, Alert, Keyboard, TouchableWithoutFeedback } from 'react-native';
 import {
   useNavigation,
   useRoute,
@@ -8,14 +8,17 @@ import {
 import type { NavigationProp } from '@react-navigation/native';
 import { storageService } from '../services/storageService';
 import { User, Game } from '../types';
+import { PLAYER_COLOR_PALETTE } from '../theme/types';
 import { useTheme } from '../theme';
 import UserSelection from '../components/UserSelection';
 import ScoreTable from '../components/ScoreTable';
 import TotalScores from '../components/TotalScores';
 import GameMenu from '../components/GameMenu';
 import ResultsModal from '../components/ResultsModal';
-import UserSelectionModal from '../components/UserSelectionModal';
+import ScreenHeader from '../components/ScreenHeader';
 import { useGameSession } from '../useGameSession';
+
+type FocusedCell = { lineId: string; userId: string } | null;
 
 const GameScreen = () => {
   const navigation = useNavigation<NavigationProp<any>>();
@@ -42,48 +45,18 @@ const GameScreen = () => {
 
   // Pure UI state — not part of the game session domain, so it stays local.
   const [users, setUsers] = useState<User[]>([]);
-  const [showUserSelection, setShowUserSelection] = useState(false);
-  const [focusedInput, setFocusedInput] = useState<string | null>(null);
+  const [focusedCell, setFocusedCell] = useState<FocusedCell>(null);
   const [showMenu, setShowMenu] = useState(false);
   const [showResultsModal, setShowResultsModal] = useState(false);
 
-  const shouldKeepModalOpenRef = useRef(false);
-  const previousUsersCountRef = useRef(0);
-
   useEffect(() => {
-    loadUsers().then(usersData => {
-      previousUsersCountRef.current = usersData.length;
-    });
+    loadUsers();
   }, []);
-
-  // Keep the header title in sync with the game title.
-  useEffect(() => {
-    navigation.setOptions({
-      title: gameTitle || 'Nouvelle Partie',
-    });
-  }, [gameTitle, navigation]);
 
   useFocusEffect(
     React.useCallback(() => {
-      const previousCount = previousUsersCountRef.current;
-      loadUsers().then(updatedUsers => {
-        if (shouldKeepModalOpenRef.current) {
-          if (updatedUsers.length > previousCount) {
-            const sortedUsers = [...updatedUsers].sort(
-              (a, b) => Number.parseInt(b.id, 10) - Number.parseInt(a.id, 10),
-            );
-            const newUser = sortedUsers[0];
-            if (newUser && !selectedUsers.some(u => u.id === newUser.id)) {
-              handleUserToggle(newUser);
-            }
-          }
-          setShowUserSelection(true);
-          shouldKeepModalOpenRef.current = false;
-        }
-        previousUsersCountRef.current = updatedUsers.length;
-      });
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [selectedUsers]),
+      loadUsers();
+    }, []),
   );
 
   const loadUsers = async () => {
@@ -96,6 +69,21 @@ const GameScreen = () => {
     dispatch({ type: 'TOGGLE_USER', user });
   };
 
+  // Inline "quick add" from the setup screen: name only, color auto-assigned
+  // from the fixed cycled palette, no navigation away from this screen.
+  const quickAddPlayer = async (name: string) => {
+    const color = PLAYER_COLOR_PALETTE[users.length % PLAYER_COLOR_PALETTE.length];
+    const newUser: User = {
+      id: Date.now().toString(),
+      name,
+      color,
+      createdAt: new Date(),
+    };
+    await storageService.addUser(newUser);
+    await loadUsers();
+    handleUserToggle(newUser);
+  };
+
   const startGame = () => {
     if (selectedUsers.length < 2) {
       Alert.alert(
@@ -105,15 +93,11 @@ const GameScreen = () => {
       return;
     }
     dispatch({ type: 'START_GAME' });
-    setShowUserSelection(false);
   };
 
   const confirmEditGameSetup = () => {
     if (selectedUsers.length < 2) {
-      Alert.alert(
-        'Erreur',
-        'Veuillez sélectionner au moins 2 joueurs pour continuer.',
-      );
+      Alert.alert('Erreur', 'Veuillez sélectionner au moins 2 joueurs pour continuer.');
       return;
     }
     if (!gameTitle.trim()) {
@@ -135,29 +119,35 @@ const GameScreen = () => {
     dispatch({ type: 'UPDATE_SCORE', lineId, userId, value });
   };
 
-  const handleInputBlur = (userId: string) => {
-    setFocusedInput(null);
-    checkScoreLimit(userId, (user, limit) => {
-      Alert.alert(
-        '🎯 Limite Atteinte!',
-        `${user.name} a atteint la limite de ${limit} points!\n\nQue souhaitez-vous faire ?`,
-        [
-          {
-            text: 'Continuer',
-            style: 'cancel',
-            onPress: () => {
-              dispatch({ type: 'MARK_LIMIT_REACHED', userId: user.id });
+  // Single owner of the "which cell is being edited" state. Runs the
+  // score-limit check for the cell being *left* (if any) before switching,
+  // so it fires reliably whether the move is a tap on another cell, "next"
+  // on the keyboard, or dismissing the keyboard entirely (next === null) —
+  // rather than depending on a native TextInput blur event, which isn't
+  // guaranteed to fire when the previously-focused cell unmounts.
+  const handleFocusChange = (next: FocusedCell) => {
+    if (
+      focusedCell &&
+      (!next || focusedCell.lineId !== next.lineId || focusedCell.userId !== next.userId)
+    ) {
+      checkScoreLimit(focusedCell.userId, (user, limit) => {
+        Alert.alert(
+          'Limite atteinte !',
+          `${user.name} a atteint la limite de ${limit} points !\n\nQue souhaitez-vous faire ?`,
+          [
+            {
+              text: 'Continuer',
+              style: 'cancel',
+              onPress: () => {
+                dispatch({ type: 'MARK_LIMIT_REACHED', userId: user.id });
+              },
             },
-          },
-          {
-            text: 'Terminer la partie',
-            onPress: () => {
-              endGame();
-            },
-          },
-        ],
-      );
-    });
+            { text: 'Terminer la partie', onPress: () => endGame() },
+          ],
+        );
+      });
+    }
+    setFocusedCell(next);
   };
 
   const deleteScoreLine = (lineId: string) => {
@@ -165,17 +155,7 @@ const GameScreen = () => {
   };
 
   const resetScores = () => {
-    Alert.alert(
-      'Réinitialiser les Scores',
-      'Êtes-vous sûr de vouloir remettre tous les scores à 0 ?',
-      [
-        { text: 'Annuler', style: 'cancel' },
-        {
-          text: 'Réinitialiser',
-          onPress: () => dispatch({ type: 'RESET_SCORES' }),
-        },
-      ],
-    );
+    dispatch({ type: 'RESET_SCORES' });
   };
 
   const saveGame = async () => {
@@ -183,40 +163,37 @@ const GameScreen = () => {
       Alert.alert('Erreur', 'Veuillez entrer un titre de partie.');
       return;
     }
-
     try {
       await persistGame();
-      Alert.alert('Succès', 'Partie enregistrée avec succès !', [
-        { text: 'OK', onPress: () => navigation.goBack() },
-      ]);
+      Alert.alert('Succès', 'Partie enregistrée avec succès !');
     } catch (error) {
       console.error('Error saving game:', error);
-      Alert.alert(
-        'Erreur',
-        "Échec de l'enregistrement de la partie. Veuillez réessayer.",
-      );
+      Alert.alert('Erreur', "Échec de l'enregistrement de la partie. Veuillez réessayer.");
     }
   };
 
   const endGame = async () => {
     if (!gameTitle.trim()) {
-      Alert.alert(
-        'Erreur',
-        'Veuillez entrer un titre de partie avant de terminer.',
-      );
+      Alert.alert('Erreur', 'Veuillez entrer un titre de partie avant de terminer.');
       return;
     }
-
     try {
       await persistGame();
       setShowResultsModal(true);
     } catch (error) {
       console.error('Error saving game:', error);
-      Alert.alert(
-        'Erreur',
-        "Échec de l'enregistrement de la partie. Veuillez réessayer.",
-      );
+      Alert.alert('Erreur', "Échec de l'enregistrement de la partie. Veuillez réessayer.");
     }
+  };
+
+  const goHomeFromResults = () => {
+    setShowResultsModal(false);
+    navigation.goBack();
+  };
+
+  const playAgainSameGroup = () => {
+    setShowResultsModal(false);
+    dispatch({ type: 'RESTART_KEEP_PLAYERS' });
   };
 
   if (
@@ -232,144 +209,75 @@ const GameScreen = () => {
         gameGoal={gameGoal}
         scoreLimit={scoreLimit}
         isEditMode={editingGameSetup}
-        onGameTitleChange={title =>
-          dispatch({ type: 'SET_GAME_TITLE', title })
-        }
+        onGameTitleChange={title => dispatch({ type: 'SET_GAME_TITLE', title })}
         onGameGoalChange={goal => dispatch({ type: 'SET_GAME_GOAL', goal })}
-        onScoreLimitChange={limit =>
-          dispatch({ type: 'SET_SCORE_LIMIT', limit })
-        }
+        onScoreLimitChange={limit => dispatch({ type: 'SET_SCORE_LIMIT', limit })}
         onUserToggle={handleUserToggle}
         onStartGame={handleUserSelectionContinue}
-        onAddUser={() => navigation.navigate('AddUser')}
+        onQuickAddUser={quickAddPlayer}
+        onBack={() =>
+          editingGameSetup
+            ? dispatch({ type: 'CONFIRM_EDIT_SETUP' })
+            : navigation.goBack()
+        }
       />
     );
   }
 
   return (
-    <View
-      style={[styles.container, { backgroundColor: theme.colors.background }]}
-    >
-      <View style={styles.gameHeader}>
-        <View style={styles.tableHeaderContainer}>
-          <Text style={[styles.leaderboardTitle, { color: theme.colors.text }]}>
-            Scores
-          </Text>
-        </View>
-        <TouchableOpacity
-          style={[
-            styles.menuButton,
-            {
-              backgroundColor: theme.colors.surface,
-              borderColor: theme.colors.borderLight,
-            },
-          ]}
-          onPress={() => setShowMenu(true)}
-          accessibilityLabel="Ouvrir le menu de la partie"
-        >
-          <Text style={[styles.menuButtonText, { color: theme.colors.text }]}>
-            ⋮
-          </Text>
-        </TouchableOpacity>
+    // Tapping anywhere that isn't itself an interactive element (a score
+    // cell, a button…) dismisses the keyboard, which blurs the currently
+    // focused TextInput and runs the normal onBlur flow below.
+    <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+      <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+        <ScreenHeader
+          title={gameTitle || 'Partie'}
+          subtitle={scoreLimit ? `Limite ${scoreLimit} pts` : undefined}
+          onBack={() => navigation.goBack()}
+          rightIcon="⋮"
+          onRightPress={() => setShowMenu(true)}
+          rightAccessibilityLabel="Menu de la partie"
+        />
+
+        <ScoreTable
+          selectedUsers={selectedUsers}
+          scoreLines={scoreLines}
+          focusedCell={focusedCell}
+          scoreLimit={scoreLimit}
+          onScoreChange={updateScoreInLine}
+          onFocusChange={handleFocusChange}
+          onDeleteLine={deleteScoreLine}
+          onUsersReorder={reorderedUsers => dispatch({ type: 'REORDER_USERS', users: reorderedUsers })}
+        />
+
+        <TotalScores selectedUsers={selectedUsers} scores={totals} />
+
+        <GameMenu
+          visible={showMenu}
+          onClose={() => setShowMenu(false)}
+          onModifyGame={() => dispatch({ type: 'START_EDIT_SETUP' })}
+          onReset={resetScores}
+          onSave={saveGame}
+          onEndGame={endGame}
+        />
+
+        <ResultsModal
+          visible={showResultsModal}
+          gameTitle={gameTitle}
+          rankedPlayers={rankedPlayers}
+          gameGoal={gameGoal}
+          scoreLimit={scoreLimit}
+          onClose={goHomeFromResults}
+          onPlayAgain={playAgainSameGroup}
+        />
       </View>
-
-      <ScoreTable
-        selectedUsers={selectedUsers}
-        scoreLines={scoreLines}
-        focusedInput={focusedInput}
-        scoreLimit={scoreLimit}
-        onScoreChange={updateScoreInLine}
-        onInputFocus={setFocusedInput}
-        onInputBlur={handleInputBlur}
-        onDeleteLine={deleteScoreLine}
-        onUsersReorder={reorderedUsers =>
-          dispatch({ type: 'REORDER_USERS', users: reorderedUsers })
-        }
-      />
-
-      <TotalScores
-        selectedUsers={selectedUsers}
-        scores={totals}
-        gameGoal={gameGoal}
-        focusedInput={focusedInput}
-      />
-
-      <UserSelectionModal
-        visible={showUserSelection}
-        users={users}
-        selectedUsers={selectedUsers}
-        onUserToggle={handleUserToggle}
-        onClose={() => {
-          setShowUserSelection(false);
-          shouldKeepModalOpenRef.current = false;
-        }}
-        onConfirm={() => {
-          setShowUserSelection(false);
-          shouldKeepModalOpenRef.current = false;
-        }}
-        onAddUser={() => {
-          shouldKeepModalOpenRef.current = true;
-          previousUsersCountRef.current = users.length;
-          navigation.navigate('AddUser');
-        }}
-      />
-
-      <GameMenu
-        visible={showMenu}
-        onClose={() => setShowMenu(false)}
-        onChangePlayers={() => setShowUserSelection(true)}
-        onModifyGame={() => dispatch({ type: 'START_EDIT_SETUP' })}
-        onReset={resetScores}
-        onSave={saveGame}
-        onEndGame={endGame}
-      />
-
-      <ResultsModal
-        visible={showResultsModal}
-        rankedPlayers={rankedPlayers}
-        gameGoal={gameGoal}
-        scoreLimit={scoreLimit}
-        onClose={() => {
-          setShowResultsModal(false);
-          navigation.goBack();
-        }}
-      />
-    </View>
+    </TouchableWithoutFeedback>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-  },
-  gameHeader: {
-    flexDirection: 'row',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    marginBottom: 20,
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  menuButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginLeft: 12,
-    borderWidth: 1,
-  },
-  menuButtonText: {
-    fontSize: 20,
-    fontWeight: 'bold',
-  },
-  tableHeaderContainer: {
-    marginBottom: 4,
-  },
-  leaderboardTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    textAlign: 'center',
   },
 });
 

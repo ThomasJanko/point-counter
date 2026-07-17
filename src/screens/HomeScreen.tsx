@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import {
   useNavigation,
   useFocusEffect,
@@ -8,9 +8,10 @@ import {
 import { storageService } from '../services/storageService';
 import { Game } from '../types';
 import { useTheme } from '../theme';
-import StatsCard from '../components/StatsCard';
-import ActionButtons from '../components/ActionButtons';
+import { ACCENT_COLORS, FONTS } from '../theme/types';
 import GameHistory from '../components/GameHistory';
+
+const BRAND_COLORS = ACCENT_COLORS.map(a => a.value);
 
 const HomeScreen = () => {
   const navigation = useNavigation<NavigationProp<any>>();
@@ -32,7 +33,6 @@ const HomeScreen = () => {
 
   const loadGames = async () => {
     const savedGames = await storageService.getGames();
-    // Sort by date, most recent first
     const sortedGames = [...savedGames].sort(
       (a, b) =>
         new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
@@ -96,20 +96,52 @@ const HomeScreen = () => {
   };
 
   return (
-    <ScrollView
-      style={[styles.container, { backgroundColor: theme.colors.background }]}
-    >
-      <View style={styles.content}>
-        <Text style={[styles.title, { color: theme.colors.primary }]}>
-          Compteur de Points
-        </Text>
-        <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>
-          Suivez les points dans vos jeux
+    <View style={[styles.root, { backgroundColor: theme.colors.background }]}>
+      <View style={styles.topBar}>
+        {BRAND_COLORS.map(color => (
+          <View key={color} style={[styles.topBarSegment, { backgroundColor: color }]} />
+        ))}
+      </View>
+
+      <ScrollView showsVerticalScrollIndicator={false}>
+        <View style={styles.headerRow}>
+          <View style={styles.mosaic}>
+            {BRAND_COLORS.map(color => (
+              <View key={color} style={[styles.mosaicSquare, { backgroundColor: color }]} />
+            ))}
+          </View>
+          <Text style={[styles.appTitle, { color: theme.colors.text }]}>Tablée</Text>
+          <TouchableOpacity
+            style={[styles.gearButton, { backgroundColor: theme.colors.surface }]}
+            onPress={() => navigation.navigate('Settings')}
+            accessibilityLabel="Paramètres"
+          >
+            <Text style={[styles.gearIcon, { color: theme.colors.text }]}>⚙</Text>
+          </TouchableOpacity>
+        </View>
+
+        <Text style={[styles.playerCountLabel, { color: theme.colors.textSecondary }]}>
+          {userCount} JOUEUR{userCount !== 1 ? 'S' : ''} ENREGISTRÉ{userCount !== 1 ? 'S' : ''}
         </Text>
 
-        <StatsCard userCount={userCount} />
-
-        <ActionButtons onStartGame={handleStartGame} navigation={navigation} />
+        <View style={styles.buttonGroup}>
+          <TouchableOpacity
+            style={[styles.outlinedButton, { borderColor: theme.colors.primary }]}
+            onPress={handleStartGame}
+          >
+            <Text style={[styles.outlinedButtonText, { color: theme.colors.primary }]}>
+              🎲 NOUVELLE PARTIE
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.surfaceButton, { backgroundColor: theme.colors.surface }]}
+            onPress={() => navigation.navigate('UserManagement')}
+          >
+            <Text style={[styles.surfaceButtonText, { color: theme.colors.text }]}>
+              Gérer les joueurs
+            </Text>
+          </TouchableOpacity>
+        </View>
 
         <GameHistory
           games={games}
@@ -117,30 +149,88 @@ const HomeScreen = () => {
           onDeleteGame={handleDeleteGame}
           onDeleteAllGames={handleDeleteAllGames}
         />
-      </View>
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
+  root: {
     flex: 1,
   },
-  content: {
+  topBar: {
+    flexDirection: 'row',
+    height: 4,
+  },
+  topBarSegment: {
     flex: 1,
-    padding: 20,
-    paddingTop: 40,
   },
-  title: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    marginBottom: 8,
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    gap: 12,
   },
-  subtitle: {
-    fontSize: 16,
-    textAlign: 'center',
-    marginBottom: 40,
+  mosaic: {
+    width: 32,
+    height: 32,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  mosaicSquare: {
+    width: 16,
+    height: 16,
+  },
+  appTitle: {
+    flex: 1,
+    fontSize: 22,
+    fontFamily: FONTS.titleExtraBold,
+  },
+  gearButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  gearIcon: {
+    fontSize: 18,
+  },
+  playerCountLabel: {
+    fontSize: 11,
+    fontFamily: FONTS.bodySemiBold,
+    letterSpacing: 1,
+    paddingHorizontal: 20,
+    marginTop: 16,
+    marginBottom: 16,
+  },
+  buttonGroup: {
+    paddingHorizontal: 20,
+    gap: 10,
+    marginBottom: 24,
+  },
+  outlinedButton: {
+    borderWidth: 1.5,
+    borderRadius: 12,
+    paddingVertical: 16,
+    alignItems: 'center',
+  },
+  outlinedButtonText: {
+    fontSize: 14,
+    fontFamily: FONTS.titleBold,
+    letterSpacing: 0.5,
+  },
+  surfaceButton: {
+    borderRadius: 12,
+    paddingVertical: 16,
+    alignItems: 'center',
+  },
+  surfaceButtonText: {
+    fontSize: 14,
+    fontFamily: FONTS.bodySemiBold,
   },
 });
 

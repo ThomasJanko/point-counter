@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { User } from '../types';
 import { useTheme } from '../theme';
+import { FONTS, tabularNums } from '../theme/types';
 
 interface PlayerWithScore extends User {
   score: number;
@@ -16,10 +17,12 @@ interface PlayerWithScore extends User {
 
 interface ResultsModalProps {
   visible: boolean;
+  gameTitle: string;
   rankedPlayers: PlayerWithScore[];
   gameGoal: 'highest' | 'lowest';
   scoreLimit: number | null;
   onClose: () => void;
+  onPlayAgain: () => void;
 }
 
 function getCompetitionRank(
@@ -33,76 +36,60 @@ function getCompetitionRank(
   return strictlyBetter + 1;
 }
 
+const medalFor = (rank: number) => {
+  if (rank === 1) return '🥇';
+  if (rank === 2) return '🥈';
+  if (rank === 3) return '🥉';
+  return `${rank}e`;
+};
+
 const ResultsModal: React.FC<ResultsModalProps> = ({
   visible,
+  gameTitle,
   rankedPlayers,
   gameGoal,
-  scoreLimit,
   onClose,
+  onPlayAgain,
 }) => {
   const { theme } = useTheme();
 
-  const rankLabel = (rank: number) => {
-    if (rank === 1) {
-      return '🥇';
-    }
-    if (rank === 2) {
-      return '🥈';
-    }
-    if (rank === 3) {
-      return '🥉';
-    }
-    return `${rank}.`;
-  };
-
   return (
     <Modal visible={visible} animationType="slide" transparent={true}>
-      <View style={[styles.resultsModalOverlay, { backgroundColor: theme.colors.overlay }]}>
-        <View style={[styles.resultsModalContent, { backgroundColor: theme.colors.card, borderColor: theme.colors.primary }]}>
-          <Text style={[styles.resultsTitle, { color: theme.colors.primary }]}>🏆 Partie Terminée 🏆</Text>
-          <Text style={[styles.resultsSubtitle, { color: theme.colors.text }]}>
-            Classement Final (
-            {gameGoal === 'highest'
-              ? 'Score le plus élevé gagne'
-              : 'Score le plus bas gagne'}
-            )
-          </Text>
-          {scoreLimit && (
-            <Text style={[styles.scoreLimitInfo, { color: theme.colors.primary }]}>
-              🎯 Limite de {scoreLimit} points atteinte!
-            </Text>
-          )}
+      <View style={[styles.overlay, { backgroundColor: theme.colors.overlay }]}>
+        <View style={[styles.content, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+          <Text style={[styles.title, { color: theme.colors.text }]}>Partie terminée 🎉</Text>
+          <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>{gameTitle}</Text>
 
-          <ScrollView style={styles.rankingList}>
+          <ScrollView style={styles.list}>
             {rankedPlayers.map(player => {
               const rank = getCompetitionRank(rankedPlayers, gameGoal, player.score);
               return (
-              <View key={player.id} style={[styles.rankingItem, { backgroundColor: theme.colors.background, borderColor: theme.colors.border }]}>
-                <View style={styles.rankingLeft}>
-                  <Text style={styles.rankingPosition}>
-                    {rankLabel(rank)}
+                <View key={player.id} style={[styles.row, { backgroundColor: theme.colors.surface2 }]}>
+                  <Text style={styles.medal}>{medalFor(rank)}</Text>
+                  <View style={[styles.dot, { backgroundColor: player.color }]} />
+                  <Text style={[styles.name, { color: theme.colors.text }]} numberOfLines={1}>
+                    {player.name}
                   </Text>
-                  <View
-                    style={[
-                      styles.colorIndicator,
-                      { backgroundColor: player.color },
-                    ]}
-                  />
-                  <Text style={[styles.rankingName, { color: theme.colors.text }]}>{player.name}</Text>
+                  <Text style={[styles.score, tabularNums, { color: theme.colors.text }]}>{player.score}</Text>
                 </View>
-                <Text style={[styles.rankingScore, { color: theme.colors.primary }]}>{player.score} pts</Text>
-              </View>
-            );
+              );
             })}
           </ScrollView>
 
-          <Text style={[styles.savedMessage, { color: theme.colors.success }]}>
-            ✓ Partie enregistrée dans l'historique
-          </Text>
-
-          <TouchableOpacity style={[styles.resultsButton, { backgroundColor: theme.colors.primary }]} onPress={onClose}>
-            <Text style={[styles.resultsButtonText, { color: theme.colors.text }]}>Retour à l'accueil</Text>
-          </TouchableOpacity>
+          <View style={styles.buttonRow}>
+            <TouchableOpacity
+              style={[styles.button, styles.outlinedButton, { borderColor: theme.colors.border }]}
+              onPress={onClose}
+            >
+              <Text style={[styles.outlinedButtonText, { color: theme.colors.text }]}>Accueil</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.button, { backgroundColor: theme.colors.primary }]}
+              onPress={onPlayAgain}
+            >
+              <Text style={[styles.filledButtonText, { color: theme.colors.onPrimary }]}>Rejouer</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
     </Modal>
@@ -110,90 +97,84 @@ const ResultsModal: React.FC<ResultsModalProps> = ({
 };
 
 const styles = StyleSheet.create({
-  resultsModalOverlay: {
+  overlay: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  resultsModalContent: {
-    borderRadius: 20,
     padding: 24,
-    width: '90%',
+  },
+  content: {
+    borderRadius: 20,
+    padding: 22,
+    width: '100%',
+    maxWidth: 340,
     maxHeight: '80%',
-    borderWidth: 2,
-  },
-  resultsTitle: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    marginBottom: 8,
-  },
-  resultsSubtitle: {
-    fontSize: 18,
-    textAlign: 'center',
-    marginBottom: 12,
-    fontWeight: '600',
-  },
-  scoreLimitInfo: {
-    fontSize: 14,
-    textAlign: 'center',
-    marginBottom: 24,
-    fontWeight: '500',
-  },
-  rankingList: {
-    maxHeight: 400,
-    marginBottom: 20,
-  },
-  rankingItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
     borderWidth: 1,
   },
-  rankingLeft: {
+  title: {
+    fontSize: 20,
+    fontFamily: FONTS.titleExtraBold,
+    textAlign: 'center',
+    marginBottom: 4,
+  },
+  subtitle: {
+    fontSize: 12,
+    fontFamily: FONTS.bodyMedium,
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  list: {
+    maxHeight: 320,
+    marginBottom: 20,
+  },
+  row: {
     flexDirection: 'row',
     alignItems: 'center',
-    flex: 1,
+    gap: 10,
+    borderRadius: 10,
+    padding: 10,
+    marginBottom: 8,
   },
-  rankingPosition: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginRight: 12,
-    width: 40,
+  medal: {
+    fontSize: 16,
+    width: 26,
     textAlign: 'center',
   },
-  rankingName: {
-    fontSize: 18,
-    fontWeight: '600',
-    marginLeft: 12,
+  dot: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+  },
+  name: {
     flex: 1,
+    fontSize: 13,
+    fontFamily: FONTS.titleBold,
   },
-  rankingScore: {
-    fontSize: 20,
-    fontWeight: 'bold',
+  score: {
+    fontSize: 15,
+    fontFamily: FONTS.titleExtraBold,
   },
-  savedMessage: {
-    fontSize: 14,
-    textAlign: 'center',
-    marginBottom: 16,
-    fontWeight: '500',
+  buttonRow: {
+    flexDirection: 'row',
+    gap: 10,
   },
-  resultsButton: {
-    borderRadius: 12,
-    padding: 16,
+  button: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 10,
     alignItems: 'center',
+    backgroundColor: 'transparent',
   },
-  resultsButtonText: {
-    fontSize: 18,
-    fontWeight: '600',
+  outlinedButton: {
+    borderWidth: 1,
   },
-  colorIndicator: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
+  outlinedButtonText: {
+    fontSize: 13,
+    fontFamily: FONTS.titleBold,
+  },
+  filledButtonText: {
+    fontSize: 13,
+    fontFamily: FONTS.titleBold,
   },
 });
 

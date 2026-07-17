@@ -1,27 +1,31 @@
 import React, { useRef, useState } from 'react';
+import { View, Text, StyleSheet, TextInput, Animated, findNodeHandle, TouchableOpacity } from 'react-native';
+// TouchableOpacity also comes from gesture-handler here, not core RN: the
+// score cells and the delete-line button live inside a gesture-handler
+// ScrollView, and the core RN TouchableOpacity uses the old JS responder
+// system, which doesn't arbitrate cleanly against GH's native gesture
+// recognizer — that mismatch is what was making the scroll feel broken
+// whenever a drag started on one of these touchables. Using GH's own
+// TouchableOpacity puts everything on the same gesture system.
 import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  TextInput,
+  Gesture,
+  GestureDetector,
   ScrollView,
-  Animated,
-  findNodeHandle,
-} from 'react-native';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+} from 'react-native-gesture-handler';
 import { User } from '../types';
 import { useTheme } from '../theme';
+import { FONTS, tabularNums } from '../theme/types';
+
+type FocusedCell = { lineId: string; userId: string } | null;
 
 interface ScoreTableProps {
   selectedUsers: User[];
   /** Raw string per cell; '' means "not entered yet". */
   scoreLines: Record<string, Record<string, string>>;
-  focusedInput: string | null;
+  focusedCell: FocusedCell;
   scoreLimit: number | null;
   onScoreChange: (lineId: string, userId: string, value: string) => void;
-  onInputFocus: (inputKey: string) => void;
-  onInputBlur: (userId: string) => void;
+  onFocusChange: (cell: FocusedCell) => void;
   onDeleteLine: (lineId: string) => void;
   onUsersReorder: (reorderedUsers: User[]) => void;
 }
@@ -29,11 +33,10 @@ interface ScoreTableProps {
 const ScoreTable: React.FC<ScoreTableProps> = ({
   selectedUsers,
   scoreLines,
-  focusedInput,
+  focusedCell,
   scoreLimit: _scoreLimit,
   onScoreChange,
-  onInputFocus,
-  onInputBlur,
+  onFocusChange,
   onDeleteLine,
   onUsersReorder,
 }) => {
@@ -48,13 +51,21 @@ const ScoreTable: React.FC<ScoreTableProps> = ({
   const columnShifts = useRef<{ [key: number]: Animated.Value }>({});
 
   const handleScoreChange = (lineId: string, userId: string, value: string) => {
-    // Remove leading zeros (e.g., "065" -> "65", "034" -> "34")
-    // But keep "0" if the value is just "0"
     let cleanedValue = value;
     if (cleanedValue.length > 1 && cleanedValue.startsWith('0')) {
       cleanedValue = cleanedValue.replace(/^0+/, '') || '0';
     }
     onScoreChange(lineId, userId, cleanedValue);
+  };
+
+  // Tapping a cell clears its previous value before entering edit mode, so
+  // typing always starts fresh (matching the old selectTextOnFocus "type to
+  // replace" behavior) without ever letting Android enter its native text-
+  // selection UI — which is what was hijacking the scroll gesture whenever a
+  // filled, centered cell was touched.
+  const beginEditing = (lineId: string, userId: string) => {
+    onScoreChange(lineId, userId, '');
+    onFocusChange({ lineId, userId });
   };
 
   // Android doesn't auto-scroll a focused TextInput above the keyboard the
@@ -65,7 +76,6 @@ const ScoreTable: React.FC<ScoreTableProps> = ({
     const scrollView = rowsScrollRef.current;
     if (!input || !scrollView) return;
 
-    // Wait a frame so the keyboard has started opening and layout settled.
     requestAnimationFrame(() => {
       const scrollNode = findNodeHandle(scrollView);
       if (!scrollNode) return;
@@ -83,30 +93,24 @@ const ScoreTable: React.FC<ScoreTableProps> = ({
 
   const focusNextInput = (currentLineId: string, currentUserId: string) => {
     const lineEntries = Object.entries(scoreLines);
-    const currentLineIndex = lineEntries.findIndex(
-      ([id]) => id === currentLineId,
-    );
-    const currentUserIndex = selectedUsers.findIndex(
-      u => u.id === currentUserId,
-    );
+    const currentLineIndex = lineEntries.findIndex(([id]) => id === currentLineId);
+    const currentUserIndex = selectedUsers.findIndex(u => u.id === currentUserId);
 
-    // Try next user in same row
     if (currentUserIndex < selectedUsers.length - 1) {
       const nextUserId = selectedUsers[currentUserIndex + 1].id;
-      const nextInputKey = `${currentLineId}_${nextUserId}`;
-      onInputFocus(nextInputKey);
-      inputRefs.current[nextInputKey]?.focus();
+      onFocusChange({ lineId: currentLineId, userId: nextUserId });
       return;
     }
 
-    // Try first user in next row
     if (currentLineIndex < lineEntries.length - 1) {
       const nextLineId = lineEntries[currentLineIndex + 1][0];
       const firstUserId = selectedUsers[0].id;
-      const nextInputKey = `${nextLineId}_${firstUserId}`;
-      onInputFocus(nextInputKey);
-      inputRefs.current[nextInputKey]?.focus();
+      onFocusChange({ lineId: nextLineId, userId: firstUserId });
+      return;
     }
+
+    // Last cell of the last line: nothing to move to.
+    onFocusChange(null);
   };
 
   const createDragGesture = (index: number) => {
@@ -131,23 +135,15 @@ const ScoreTable: React.FC<ScoreTableProps> = ({
         const { translationX } = event;
         dragOffsetAnimated.setValue(translationX);
 
-        // Calculate which column we're hovering over
-        const columnWidth = 94; // width (80) + margin (8 * 2)
+        const columnWidth = 94;
         const currentDraggedIndex = draggedIndexRef.current;
         if (currentDraggedIndex === null) return;
 
-        // Calculate target index based on translation
-        // Allow placing before (negative) or after (positive) other columns
         const targetCol = Math.round(translationX / columnWidth);
         let newTargetIndex = currentDraggedIndex + targetCol;
 
-        // Clamp to valid range
-        newTargetIndex = Math.max(
-          0,
-          Math.min(selectedUsers.length - 1, newTargetIndex),
-        );
+        newTargetIndex = Math.max(0, Math.min(selectedUsers.length - 1, newTargetIndex));
 
-        // If dragging to the same position, check if we want before or after
         if (newTargetIndex === currentDraggedIndex && targetCol !== 0) {
           newTargetIndex =
             targetCol > 0
@@ -160,7 +156,6 @@ const ScoreTable: React.FC<ScoreTableProps> = ({
             return prev;
           }
 
-          // Animate column shifts to show insertion point
           const currentDraggedIdx = draggedIndexRef.current;
           if (currentDraggedIdx !== null) {
             for (let idx = 0; idx < selectedUsers.length; idx++) {
@@ -170,18 +165,13 @@ const ScoreTable: React.FC<ScoreTableProps> = ({
                 }
 
                 let newShift = 0;
-                // If dragging left (to a lower index)
                 if (currentDraggedIdx > newTargetIndex) {
-                  // Shift columns between target and dragged position to the right
                   if (idx >= newTargetIndex && idx < currentDraggedIdx) {
-                    newShift = 94; // Shift right (width 80 + margin 16)
+                    newShift = 94;
                   }
-                }
-                // If dragging right (to a higher index)
-                else if (currentDraggedIdx < newTargetIndex) {
-                  // Shift columns between dragged and target position to the left
+                } else if (currentDraggedIdx < newTargetIndex) {
                   if (idx > currentDraggedIdx && idx <= newTargetIndex) {
-                    newShift = -94; // Shift left (width 80 + margin 16)
+                    newShift = -94;
                   }
                 }
 
@@ -205,14 +195,12 @@ const ScoreTable: React.FC<ScoreTableProps> = ({
           targetIndex !== null &&
           currentDraggedIndex !== targetIndex
         ) {
-          // Reorder users
           const newUsers = [...selectedUsers];
           const [draggedUser] = newUsers.splice(currentDraggedIndex, 1);
           newUsers.splice(targetIndex, 0, draggedUser);
           onUsersReorder(newUsers);
         }
         if (draggedIndexRef.current === index) {
-          // Reset all column shifts
           const resetAnimations = Object.keys(columnShifts.current).map(idx =>
             Animated.spring(columnShifts.current[Number(idx)], {
               toValue: 0,
@@ -254,10 +242,7 @@ const ScoreTable: React.FC<ScoreTableProps> = ({
       <View
         style={[
           styles.scrollContainer,
-          {
-            backgroundColor: theme.colors.card,
-            borderColor: theme.colors.border,
-          },
+          { backgroundColor: theme.colors.surface, borderColor: theme.colors.borderLight },
         ]}
       >
         <ScrollView
@@ -268,31 +253,16 @@ const ScoreTable: React.FC<ScoreTableProps> = ({
         >
           <View style={styles.tableContainer}>
             {/* Header Row */}
-            <View
-              style={[
-                styles.tableHeader,
-                { backgroundColor: theme.colors.surface },
-              ]}
-            >
-              <Text
-                style={[
-                  styles.lineNumberHeader,
-                  { color: theme.colors.primary },
-                ]}
-              >
-                #
-              </Text>
+            <View style={styles.tableHeader}>
+              <View style={styles.lineNumberHeader} />
               {selectedUsers.map((user, index) => {
                 const isDragging = draggedIndex === index;
                 const isTarget =
-                  targetIndex === index &&
-                  draggedIndex !== null &&
-                  draggedIndex !== index;
+                  targetIndex === index && draggedIndex !== null && draggedIndex !== index;
                 const dragGesture = createDragGesture(index);
 
                 return (
                   <View key={user.id} style={styles.headerCellWrapper}>
-                    {/* Show placeholder in the original position when dragging */}
                     {isDragging && draggedIndex === index && (
                       <View
                         style={[
@@ -302,7 +272,6 @@ const ScoreTable: React.FC<ScoreTableProps> = ({
                         ]}
                       />
                     )}
-                    {/* Drop placeholder indicator - absolutely positioned */}
                     {isTarget && (
                       <Animated.View
                         style={[
@@ -323,6 +292,7 @@ const ScoreTable: React.FC<ScoreTableProps> = ({
                       <Animated.View
                         style={[
                           styles.playerHeaderCell,
+                          { borderBottomColor: user.color },
                           isDragging && [
                             styles.playerHeaderCellDragging,
                             {
@@ -335,36 +305,14 @@ const ScoreTable: React.FC<ScoreTableProps> = ({
                           !isDragging &&
                             (() => {
                               if (!columnShifts.current[index]) {
-                                columnShifts.current[index] =
-                                  new Animated.Value(0);
+                                columnShifts.current[index] = new Animated.Value(0);
                               }
-                              return {
-                                transform: [
-                                  { translateX: columnShifts.current[index] },
-                                ],
-                              };
+                              return { transform: [{ translateX: columnShifts.current[index] }] };
                             })(),
                         ]}
                       >
-                        <View
-                          style={[
-                            styles.dragHandle,
-                            isDragging && styles.dragHandleActive,
-                          ]}
-                        />
-                        <View
-                          style={[
-                            styles.colorIndicator,
-                            { backgroundColor: user.color },
-                          ]}
-                        />
-                        <Text
-                          style={[
-                            styles.playerHeaderText,
-                            { color: theme.colors.primary },
-                          ]}
-                        >
-                          {user.name}
+                        <Text style={[styles.playerHeaderText, { color: theme.colors.text }]} numberOfLines={1}>
+                          ⠿ {user.name}
                         </Text>
                       </Animated.View>
                     </GestureDetector>
@@ -382,91 +330,90 @@ const ScoreTable: React.FC<ScoreTableProps> = ({
               showsVerticalScrollIndicator={true}
               keyboardShouldPersistTaps="handled"
             >
-              {Object.entries(scoreLines).map(
-                ([lineId, lineScores], lineIndex) => (
-                  <View
-                    key={lineId}
-                    style={[
-                      styles.tableRow,
-                      { borderBottomColor: theme.colors.border },
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.lineNumberCell,
-                        { color: theme.colors.primary },
-                      ]}
-                    >
-                      {lineIndex + 1}
-                    </Text>
-                    {selectedUsers.map(user => {
-                      const inputKey = `${lineId}_${user.id}`;
-                      const isFocused = focusedInput === inputKey;
+              {Object.entries(scoreLines).map(([lineId, lineScores], lineIndex) => (
+                <View key={lineId} style={styles.tableRow}>
+                  <Text style={[styles.lineNumberCell, { color: theme.colors.textTertiary }]}>
+                    {lineIndex + 1}
+                  </Text>
+                  {selectedUsers.map(user => {
+                    const inputKey = `${lineId}_${user.id}`;
+                    const isFocused =
+                      focusedCell !== null &&
+                      focusedCell.lineId === lineId &&
+                      focusedCell.userId === user.id;
+                    const rawValue = lineScores[user.id] ?? '';
+
+                    // Only the single cell actually being edited is a real
+                    // TextInput. Every other cell is a plain, non-editable
+                    // Text — which never intercepts a scroll gesture, unlike
+                    // a centered TextInput whose glyphs sit right under the
+                    // finger. This is what keeps the table scroll priority
+                    // over per-cell touches.
+                    if (isFocused) {
                       return (
                         <TextInput
-                          // multiline={true}
                           ref={ref => {
                             inputRefs.current[inputKey] = ref;
                           }}
                           key={inputKey}
+                          autoFocus
                           style={[
                             styles.scoreInputCell,
+                            tabularNums,
+                            styles.scoreInputCellFocused,
                             {
-                              backgroundColor: theme.colors.card,
-                              borderColor: theme.colors.borderLight,
+                              backgroundColor: theme.colors.primaryBackground,
+                              borderColor: theme.colors.primary,
                               color: theme.colors.text,
+                              shadowColor: theme.colors.primary,
                             },
-                            isFocused && [
-                              styles.scoreInputCellFocused,
-                              {
-                                borderColor: theme.colors.primary,
-                                backgroundColor: theme.colors.primaryBackground,
-                                shadowColor: theme.colors.primary,
-                              },
-                            ],
                           ]}
-                          value={lineScores[user.id] ?? ''}
-                          onChangeText={value =>
-                            handleScoreChange(lineId, user.id, value)
-                          }
-                          onFocus={() => {
-                            onInputFocus(inputKey);
-                            scrollFocusedInputIntoView(inputKey);
-                          }}
-                          onBlur={() => onInputBlur(user.id)}
-                          onSubmitEditing={() => {
-                            focusNextInput(lineId, user.id);
-                          }}
+                          value={rawValue}
+                          onChangeText={value => handleScoreChange(lineId, user.id, value)}
+                          onFocus={() => scrollFocusedInputIntoView(inputKey)}
+                          onBlur={() => onFocusChange(null)}
+                          onSubmitEditing={() => focusNextInput(lineId, user.id)}
                           keyboardType="numeric"
-                          placeholder="0"
+                          placeholder="—"
                           placeholderTextColor={theme.colors.placeholder}
-                          selectTextOnFocus={true}
                           returnKeyType="next"
                           textAlignVertical="center"
                         />
                       );
-                    })}
-                    <TouchableOpacity
-                      style={styles.deleteLineButton}
-                      onPress={() => onDeleteLine(lineId)}
-                    >
-                      <View
+                    }
+
+                    return (
+                      <TouchableOpacity
+                        key={inputKey}
+                        activeOpacity={0.7}
                         style={[
-                          styles.minusIconContainer,
-                          { backgroundColor: theme.colors.error },
+                          styles.scoreInputCell,
+                          {
+                            backgroundColor: theme.colors.surface,
+                            borderColor: theme.colors.borderLight,
+                          },
                         ]}
+                        onPress={() => beginEditing(lineId, user.id)}
                       >
-                        <View
+                        <Text
                           style={[
-                            styles.minusIcon,
-                            { backgroundColor: theme.colors.text },
+                            styles.scoreCellText,
+                            tabularNums,
+                            { color: rawValue === '' ? theme.colors.placeholder : theme.colors.text },
                           ]}
-                        />
-                      </View>
-                    </TouchableOpacity>
-                  </View>
-                ),
-              )}
+                        >
+                          {rawValue === '' ? '—' : rawValue}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                  <TouchableOpacity style={styles.deleteLineButton} onPress={() => onDeleteLine(lineId)}>
+                    <View style={[styles.minusIconContainer, { backgroundColor: theme.colors.error }]}>
+                      <View style={[styles.minusIcon, { backgroundColor: theme.colors.background }]} />
+                    </View>
+                  </TouchableOpacity>
+                </View>
+              ))}
             </ScrollView>
           </View>
         </ScrollView>
@@ -477,15 +424,15 @@ const ScoreTable: React.FC<ScoreTableProps> = ({
 
 const styles = StyleSheet.create({
   scoreTableContainer: {
-    marginTop: -20,
     flex: 1,
-    padding: 6,
+    paddingHorizontal: 6,
     paddingTop: 4,
   },
   scrollContainer: {
     flex: 1,
     borderRadius: 12,
     borderWidth: 1,
+    marginBottom: 10,
   },
   scoreTable: {
     flex: 1,
@@ -500,37 +447,28 @@ const styles = StyleSheet.create({
   },
   tableHeader: {
     flexDirection: 'row',
-    paddingVertical: 6,
+    paddingTop: 10,
     paddingHorizontal: 8,
-    borderTopLeftRadius: 12,
-    borderTopRightRadius: 12,
-    width: '100%',
     alignItems: 'center',
     justifyContent: 'flex-start',
   },
   lineNumberHeader: {
-    width: 24,
-    fontSize: 12,
-    fontWeight: 'bold',
-    textAlign: 'center',
+    width: 44,
     alignSelf: 'center',
+    textAlign: 'center',
   },
   playerHeaderCell: {
     width: 80,
-    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginHorizontal: 0,
     position: 'relative',
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
+    paddingBottom: 6,
   },
   playerHeaderCellDragging: {
     zIndex: 1000,
     elevation: 10,
-  },
-  playerHeaderCellTarget: {
-    borderWidth: 2,
-    borderColor: '#8b5cf6',
-    borderRadius: 4,
   },
   dropPlaceholder: {
     width: 80,
@@ -539,46 +477,46 @@ const styles = StyleSheet.create({
     borderStyle: 'dashed',
     borderRadius: 6,
   },
-  dragHandle: {
-    opacity: 0.3,
-  },
-  dragHandleActive: {
-    opacity: 1,
-  },
   playerHeaderText: {
-    fontSize: 13,
-    fontWeight: 'bold',
+    fontSize: 10,
+    fontFamily: FONTS.titleExtraBold,
+    letterSpacing: 0.3,
     textAlign: 'center',
   },
   actionHeader: {
     width: 35,
-    fontSize: 12,
-    fontWeight: 'bold',
-    color: '#8b5cf6',
   },
   tableRow: {
     flexDirection: 'row',
-    paddingVertical: 6,
+    paddingVertical: 3,
     paddingHorizontal: 4,
-    borderBottomWidth: 1,
-    minHeight: 40,
+    alignItems: 'center',
+    minHeight: 50,
   },
   lineNumberCell: {
-    width: 30,
-    fontSize: 12,
-    fontWeight: 'bold',
+    width: 40,
+    fontSize: 10,
+    fontFamily: FONTS.titleBold,
     textAlign: 'center',
   },
   scoreInputCell: {
     width: 80,
-    height: 34,
-    borderRadius: 6,
-    borderWidth: 2,
-    fontSize: 13,
-    fontWeight: '600',
-    marginHorizontal: 4,
+    height: 44,
+    borderRadius: 10,
+    borderWidth: 1,
+    fontSize: 16,
+    fontFamily: FONTS.titleBold,
+    marginHorizontal: 3,
     paddingVertical: 0,
+    textAlign: 'center',
     overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  scoreCellText: {
+    fontSize: 16,
+    fontFamily: FONTS.titleBold,
+    textAlign: 'center',
   },
   scoreInputCellFocused: {
     shadowOffset: { width: 0, height: 0 },
@@ -603,17 +541,10 @@ const styles = StyleSheet.create({
     height: 2,
     borderRadius: 1,
   },
-  colorIndicator: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    flex: 0,
-    marginRight: 4,
-  },
   headerCellWrapper: {
     position: 'relative',
     width: 80,
-    marginHorizontal: 4,
+    marginHorizontal: 3,
     alignItems: 'center',
     justifyContent: 'center',
   },
