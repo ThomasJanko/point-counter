@@ -1,17 +1,12 @@
 import React, { useRef, useState } from 'react';
-import { View, Text, StyleSheet, TextInput, Animated, findNodeHandle, TouchableOpacity } from 'react-native';
-// TouchableOpacity also comes from gesture-handler here, not core RN: the
-// score cells and the delete-line button live inside a gesture-handler
-// ScrollView, and the core RN TouchableOpacity uses the old JS responder
-// system, which doesn't arbitrate cleanly against GH's native gesture
-// recognizer — that mismatch is what was making the scroll feel broken
-// whenever a drag started on one of these touchables. Using GH's own
-// TouchableOpacity puts everything on the same gesture system.
-import {
-  Gesture,
-  GestureDetector,
-  ScrollView,
-} from 'react-native-gesture-handler';
+import { View, Text, StyleSheet, TextInput, Animated, findNodeHandle, Pressable } from 'react-native';
+// The score cells and the delete-line button live inside a gesture-handler
+// ScrollView, so they use core RN's Pressable rather than TouchableOpacity:
+// Pressable is what gesture-handler's native gesture recognizer arbitrates
+// against correctly (TouchableOpacity uses the old JS responder system,
+// which doesn't), and gesture-handler's own Touchable* components are
+// `@deprecated` in the installed version in favor of Pressable anyway.
+import { Gesture, GestureDetector, ScrollView } from 'react-native-gesture-handler';
 import { User } from '../types';
 import { useTheme } from '../theme';
 import { FONTS, tabularNums } from '../theme/types';
@@ -64,7 +59,7 @@ const ScoreTable: React.FC<ScoreTableProps> = ({
   // selection UI — which is what was hijacking the scroll gesture whenever a
   // filled, centered cell was touched.
   const beginEditing = (lineId: string, userId: string) => {
-    onScoreChange(lineId, userId, '');
+    // onScoreChange(lineId, userId, '');
     onFocusChange({ lineId, userId });
   };
 
@@ -190,16 +185,12 @@ const ScoreTable: React.FC<ScoreTableProps> = ({
       })
       .onEnd(() => {
         const currentDraggedIndex = draggedIndexRef.current;
-        if (
+        const finalTargetIndex = targetIndex;
+        const shouldReorder =
           currentDraggedIndex === index &&
-          targetIndex !== null &&
-          currentDraggedIndex !== targetIndex
-        ) {
-          const newUsers = [...selectedUsers];
-          const [draggedUser] = newUsers.splice(currentDraggedIndex, 1);
-          newUsers.splice(targetIndex, 0, draggedUser);
-          onUsersReorder(newUsers);
-        }
+          finalTargetIndex !== null &&
+          currentDraggedIndex !== finalTargetIndex;
+
         if (draggedIndexRef.current === index) {
           const resetAnimations = Object.keys(columnShifts.current).map(idx =>
             Animated.spring(columnShifts.current[Number(idx)], {
@@ -230,6 +221,20 @@ const ScoreTable: React.FC<ScoreTableProps> = ({
             setTargetIndex(null);
             dragOffsetAnimated.setValue(0);
             opacityAnimated.setValue(1);
+
+            // Commit the actual reorder only once every per-column shift is
+            // confirmed back at 0. columnShifts is keyed by array position,
+            // not by user id — committing the reorder earlier (while the
+            // spring-back animation was still running) meant the array
+            // order changed under columns that still had a stale, non-zero
+            // shift meant for the *old* order, which is what made columns
+            // visually overlap after a drag.
+            if (shouldReorder && currentDraggedIndex !== null && finalTargetIndex !== null) {
+              const newUsers = [...selectedUsers];
+              const [draggedUser] = newUsers.splice(currentDraggedIndex, 1);
+              newUsers.splice(finalTargetIndex, 0, draggedUser);
+              onUsersReorder(newUsers);
+            }
           });
         }
       });
@@ -383,9 +388,8 @@ const ScoreTable: React.FC<ScoreTableProps> = ({
                     }
 
                     return (
-                      <TouchableOpacity
+                      <Pressable
                         key={inputKey}
-                        activeOpacity={0.7}
                         style={[
                           styles.scoreInputCell,
                           {
@@ -404,14 +408,14 @@ const ScoreTable: React.FC<ScoreTableProps> = ({
                         >
                           {rawValue === '' ? '—' : rawValue}
                         </Text>
-                      </TouchableOpacity>
+                      </Pressable>
                     );
                   })}
-                  <TouchableOpacity style={styles.deleteLineButton} onPress={() => onDeleteLine(lineId)}>
+                  <Pressable style={styles.deleteLineButton} onPress={() => onDeleteLine(lineId)}>
                     <View style={[styles.minusIconContainer, { backgroundColor: theme.colors.error }]}>
                       <View style={[styles.minusIcon, { backgroundColor: theme.colors.background }]} />
                     </View>
-                  </TouchableOpacity>
+                  </Pressable>
                 </View>
               ))}
             </ScrollView>

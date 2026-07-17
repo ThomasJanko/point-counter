@@ -250,7 +250,7 @@ const GameScreen = () => {
           onUsersReorder={reorderedUsers => dispatch({ type: 'REORDER_USERS', users: reorderedUsers })}
         />
 
-        <TotalScores selectedUsers={selectedUsers} scores={totals} />
+        <TotalScores selectedUsers={selectedUsers} scores={totals} gameGoal={gameGoal} />
 
         <GameMenu
           visible={showMenu}
