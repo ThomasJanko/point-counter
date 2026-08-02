@@ -110,7 +110,7 @@ const HomeScreen = () => {
               <View key={color} style={[styles.mosaicSquare, { backgroundColor: color }]} />
             ))}
           </View>
-          <Text style={[styles.appTitle, { color: theme.colors.text }]}>Tablée</Text>
+          <Text style={[styles.appTitle, { color: theme.colors.text }]}>Meetle+</Text>
           <TouchableOpacity
             style={[styles.gearButton, { backgroundColor: theme.colors.surface }]}
             onPress={() => navigation.navigate('Settings')}

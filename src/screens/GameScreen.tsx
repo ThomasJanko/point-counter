@@ -1,11 +1,15 @@
 import React, { useEffect, useState } from 'react';
-import { View, StyleSheet, Alert, Keyboard, TouchableWithoutFeedback } from 'react-native';
+import { StyleSheet, Alert, Keyboard } from 'react-native';
 import {
   useNavigation,
   useRoute,
   useFocusEffect,
 } from '@react-navigation/native';
 import type { NavigationProp } from '@react-navigation/native';
+// Prefer gesture-handler Pressable over RN TouchableWithoutFeedback: the
+// latter claims the JS responder and blocks pan gestures on nested
+// ScrollViews (e.g. TotalScores chips). Pressable arbitrates with them.
+import { Pressable } from 'react-native-gesture-handler';
 import { storageService } from '../services/storageService';
 import { User, Game } from '../types';
 import { PLAYER_COLOR_PALETTE } from '../theme/types';
@@ -228,50 +232,52 @@ const GameScreen = () => {
     // Tapping anywhere that isn't itself an interactive element (a score
     // cell, a button…) dismisses the keyboard, which blurs the currently
     // focused TextInput and runs the normal onBlur flow below.
-    <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
-      <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-        <ScreenHeader
-          title={gameTitle || 'Partie'}
-          subtitle={scoreLimit ? `Limite ${scoreLimit} pts` : undefined}
-          onBack={() => navigation.goBack()}
-          rightIcon="⋮"
-          onRightPress={() => setShowMenu(true)}
-          rightAccessibilityLabel="Menu de la partie"
-        />
+    <Pressable
+      style={[styles.container, { backgroundColor: theme.colors.background }]}
+      onPress={Keyboard.dismiss}
+      accessible={false}
+    >
+      <ScreenHeader
+        title={gameTitle || 'Partie'}
+        subtitle={scoreLimit ? `Limite ${scoreLimit} pts` : undefined}
+        onBack={() => navigation.goBack()}
+        rightIcon="⋮"
+        onRightPress={() => setShowMenu(true)}
+        rightAccessibilityLabel="Menu de la partie"
+      />
 
-        <ScoreTable
-          selectedUsers={selectedUsers}
-          scoreLines={scoreLines}
-          focusedCell={focusedCell}
-          scoreLimit={scoreLimit}
-          onScoreChange={updateScoreInLine}
-          onFocusChange={handleFocusChange}
-          onDeleteLine={deleteScoreLine}
-          onUsersReorder={reorderedUsers => dispatch({ type: 'REORDER_USERS', users: reorderedUsers })}
-        />
+      <ScoreTable
+        selectedUsers={selectedUsers}
+        scoreLines={scoreLines}
+        focusedCell={focusedCell}
+        scoreLimit={scoreLimit}
+        onScoreChange={updateScoreInLine}
+        onFocusChange={handleFocusChange}
+        onDeleteLine={deleteScoreLine}
+        onUsersReorder={reorderedUsers => dispatch({ type: 'REORDER_USERS', users: reorderedUsers })}
+      />
 
-        <TotalScores selectedUsers={selectedUsers} scores={totals} gameGoal={gameGoal} />
+      <TotalScores selectedUsers={selectedUsers} scores={totals} gameGoal={gameGoal} />
 
-        <GameMenu
-          visible={showMenu}
-          onClose={() => setShowMenu(false)}
-          onModifyGame={() => dispatch({ type: 'START_EDIT_SETUP' })}
-          onReset={resetScores}
-          onSave={saveGame}
-          onEndGame={endGame}
-        />
+      <GameMenu
+        visible={showMenu}
+        onClose={() => setShowMenu(false)}
+        onModifyGame={() => dispatch({ type: 'START_EDIT_SETUP' })}
+        onReset={resetScores}
+        onSave={saveGame}
+        onEndGame={endGame}
+      />
 
-        <ResultsModal
-          visible={showResultsModal}
-          gameTitle={gameTitle}
-          rankedPlayers={rankedPlayers}
-          gameGoal={gameGoal}
-          scoreLimit={scoreLimit}
-          onClose={goHomeFromResults}
-          onPlayAgain={playAgainSameGroup}
-        />
-      </View>
-    </TouchableWithoutFeedback>
+      <ResultsModal
+        visible={showResultsModal}
+        gameTitle={gameTitle}
+        rankedPlayers={rankedPlayers}
+        gameGoal={gameGoal}
+        scoreLimit={scoreLimit}
+        onClose={goHomeFromResults}
+        onPlayAgain={playAgainSameGroup}
+      />
+    </Pressable>
   );
 };
 

@@ -1,9 +1,8 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-// Same ScrollView as ScoreTable's vertical rows: GameScreen wraps the
-// screen in TouchableWithoutFeedback (keyboard dismiss), which steals
-// pan gestures from RN's core ScrollView. gesture-handler's native
-// recognizer wins that arbitration.
+// Same ScrollView as ScoreTable's vertical rows — pairs with GameScreen's
+// gesture-handler Pressable so pans on chips scroll instead of being
+// swallowed by the keyboard-dismiss wrapper.
 import { ScrollView } from 'react-native-gesture-handler';
 import { User } from '../types';
 import { useTheme } from '../theme';
@@ -37,6 +36,7 @@ const TotalScores: React.FC<TotalScoresProps> = ({ selectedUsers, scores, gameGo
         nestedScrollEnabled
         showsVerticalScrollIndicator
         keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
       >
         {rankedUsers.map(user => (
           <View
@@ -45,6 +45,9 @@ const TotalScores: React.FC<TotalScoresProps> = ({ selectedUsers, scores, gameGo
               styles.chip,
               { backgroundColor: theme.colors.surface2, borderColor: user.color },
             ]}
+            // Chips are display-only; don't let them compete with the
+            // ScrollView for the pan gesture.
+            pointerEvents="none"
           >
             <View style={[styles.chipDot, { backgroundColor: user.color }]} />
             <Text style={[styles.chipName, { color: theme.colors.text }]} numberOfLines={1}>

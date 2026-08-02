@@ -446,7 +446,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollableRows: {
-    flex: 1,
+    flex: 1, 
     height: '100%',
   },
   tableHeader: {

@@ -69,7 +69,7 @@ const SettingsScreen = () => {
         <View style={styles.section}>
           <Text style={[styles.sectionLabel, { color: theme.colors.textTertiary }]}>INFORMATIONS</Text>
           <View style={[styles.infoCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.borderLight }]}>
-            <Text style={[styles.infoText, { color: theme.colors.textSecondary }]}>Tablée · v0.0.1</Text>
+            <Text style={[styles.infoText, { color: theme.colors.textSecondary }]}>Meetle+ · v0.0.1</Text>
           </View>
         </View>
       </ScrollView>

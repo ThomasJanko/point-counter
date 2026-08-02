@@ -1,5 +1,5 @@
 /**
- * Tablée
+ * Meetle+
  * A React Native app for counting points during board game nights
  */
 

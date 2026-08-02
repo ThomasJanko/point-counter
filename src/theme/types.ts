@@ -50,7 +50,7 @@ export interface Theme {
 
 // The 4 user-selectable accent colors ("Accent (choix utilisateur, 4 options)").
 // `onColor` is the fixed contrast text/icon color used on top of a
-// button/surface filled with this accent (matches the Tablée prototype,
+// button/surface filled with this accent (matches the Webble prototype,
 // which uses white text on violet/rose but dark text on the brighter
 // sarcelle/or since those don't have enough contrast with white).
 export interface AccentOption {
