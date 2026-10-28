@@ -12,11 +12,13 @@ interface TotalScoresProps {
   selectedUsers: User[];
   scores: { [userId: string]: number };
   gameGoal: 'highest' | 'lowest';
+  /** Single horizontal row, used while the keyboard is open. */
+  compact?: boolean;
 }
 
 const MAX_HEIGHT = 100;
 
-const TotalScores: React.FC<TotalScoresProps> = ({ selectedUsers, scores, gameGoal }) => {
+const TotalScores: React.FC<TotalScoresProps> = ({ selectedUsers, scores, gameGoal, compact = false }) => {
   const { theme } = useTheme();
 
   // Best score first — "best" depends on the game's goal (highest or
@@ -28,14 +30,28 @@ const TotalScores: React.FC<TotalScoresProps> = ({ selectedUsers, scores, gameGo
   });
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.surface, borderTopColor: theme.colors.primary }]}>
-      <Text style={[styles.totalLabel, { color: theme.colors.textSecondary }]}>TOTAL</Text>
+    <View
+      style={[
+        styles.container,
+        compact && styles.containerCompact,
+        { backgroundColor: theme.colors.surface, borderTopColor: theme.colors.primary },
+      ]}
+    >
+      {!compact && (
+        <Text style={[styles.totalLabel, { color: theme.colors.textSecondary }]}>TOTAL</Text>
+      )}
       <ScrollView
-        style={styles.scrollArea}
-        contentContainerStyle={styles.chipsWrap}
+        key={compact ? 'compact' : 'full'}
+        horizontal={compact}
+        style={compact ? undefined : styles.scrollArea}
+        contentContainerStyle={compact ? styles.chipsRow : styles.chipsWrap}
         nestedScrollEnabled
-        showsVerticalScrollIndicator
-        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={!compact}
+        showsHorizontalScrollIndicator={false}
+        // 'never' (the default): a tap on the totals area while the
+        // keyboard is open closes it — replaces the old full-screen
+        // keyboard-dismiss wrapper in GameScreen.
+        keyboardShouldPersistTaps="never"
         keyboardDismissMode="on-drag"
       >
         {rankedUsers.map(user => (
@@ -74,6 +90,14 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.titleExtraBold,
     letterSpacing: 0.6,
     marginBottom: 6,
+  },
+  containerCompact: {
+    paddingVertical: 6,
+  },
+  chipsRow: {
+    flexDirection: 'row',
+    columnGap: 8,
+    alignItems: 'center',
   },
   scrollArea: {
     height: MAX_HEIGHT,

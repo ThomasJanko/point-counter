@@ -1,15 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { StyleSheet, Alert, Keyboard } from 'react-native';
+import { StyleSheet, Alert, View } from 'react-native';
 import {
   useNavigation,
   useRoute,
   useFocusEffect,
 } from '@react-navigation/native';
 import type { NavigationProp } from '@react-navigation/native';
-// Prefer gesture-handler Pressable over RN TouchableWithoutFeedback: the
-// latter claims the JS responder and blocks pan gestures on nested
-// ScrollViews (e.g. TotalScores chips). Pressable arbitrates with them.
-import { Pressable } from 'react-native-gesture-handler';
 import { storageService } from '../services/storageService';
 import { User, Game } from '../types';
 import { PLAYER_COLOR_PALETTE } from '../theme/types';
@@ -21,6 +17,7 @@ import GameMenu from '../components/GameMenu';
 import ResultsModal from '../components/ResultsModal';
 import ScreenHeader from '../components/ScreenHeader';
 import { useGameSession } from '../useGameSession';
+import { useKeyboardOverlap } from '../useKeyboardOverlap';
 
 type FocusedCell = { lineId: string; userId: string } | null;
 
@@ -52,6 +49,7 @@ const GameScreen = () => {
   const [focusedCell, setFocusedCell] = useState<FocusedCell>(null);
   const [showMenu, setShowMenu] = useState(false);
   const [showResultsModal, setShowResultsModal] = useState(false);
+  const { viewRef, onLayout, keyboardOverlap } = useKeyboardOverlap();
 
   useEffect(() => {
     loadUsers();
@@ -229,13 +227,21 @@ const GameScreen = () => {
   }
 
   return (
-    // Tapping anywhere that isn't itself an interactive element (a score
-    // cell, a button…) dismisses the keyboard, which blurs the currently
-    // focused TextInput and runs the normal onBlur flow below.
-    <Pressable
-      style={[styles.container, { backgroundColor: theme.colors.background }]}
-      onPress={Keyboard.dismiss}
-      accessible={false}
+    // Plain View root. The previous full-screen gesture-handler Pressable
+    // (used to dismiss the keyboard on outside taps) competed with every
+    // gesture below it — including the header drag & drop. Keyboard
+    // dismissal now comes from the ScrollViews themselves: tapping an empty
+    // part of the score table or the totals area closes it.
+    //
+    // paddingBottom = part of the screen hidden by the keyboard (Android 15+
+    // no longer resizes the window for us, see useKeyboardOverlap).
+    <View
+      ref={viewRef}
+      onLayout={onLayout}
+      style={[
+        styles.container,
+        { backgroundColor: theme.colors.background, paddingBottom: keyboardOverlap },
+      ]}
     >
       <ScreenHeader
         title={gameTitle || 'Partie'}
@@ -251,13 +257,21 @@ const GameScreen = () => {
         scoreLines={scoreLines}
         focusedCell={focusedCell}
         scoreLimit={scoreLimit}
+        keyboardInset={keyboardOverlap}
         onScoreChange={updateScoreInLine}
         onFocusChange={handleFocusChange}
         onDeleteLine={deleteScoreLine}
         onUsersReorder={reorderedUsers => dispatch({ type: 'REORDER_USERS', users: reorderedUsers })}
       />
 
-      <TotalScores selectedUsers={selectedUsers} scores={totals} gameGoal={gameGoal} />
+      <TotalScores
+        selectedUsers={selectedUsers}
+        scores={totals}
+        gameGoal={gameGoal}
+        // Keyboard open → single compact row, so the table keeps enough
+        // height to show the cell being edited on small phones.
+        compact={keyboardOverlap > 0}
+      />
 
       <GameMenu
         visible={showMenu}
@@ -277,7 +291,7 @@ const GameScreen = () => {
         onClose={goHomeFromResults}
         onPlayAgain={playAgainSameGroup}
       />
-    </Pressable>
+    </View>
   );
 };
 

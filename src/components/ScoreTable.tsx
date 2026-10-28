@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, StyleSheet, TextInput, Animated, findNodeHandle, Pressable } from 'react-native';
 // The score cells and the delete-line button live inside a gesture-handler
 // ScrollView, so they use core RN's Pressable rather than TouchableOpacity:
@@ -19,17 +19,33 @@ interface ScoreTableProps {
   scoreLines: Record<string, Record<string, string>>;
   focusedCell: FocusedCell;
   scoreLimit: number | null;
+  /** Height (dp) of the keyboard currently overlapping the screen, 0 if none. */
+  keyboardInset?: number;
   onScoreChange: (lineId: string, userId: string, value: string) => void;
   onFocusChange: (cell: FocusedCell) => void;
   onDeleteLine: (lineId: string) => void;
   onUsersReorder: (reorderedUsers: User[]) => void;
 }
 
+// Must match the real on-screen width of one column: CELL_WIDTH plus the
+// horizontal margins of headerCellWrapper / scoreInputCell. The old
+// hard-coded 94 didn't (80 + 2×3 = 86), so drop targets and column shifts
+// drifted further off the more you dragged.
+const CELL_WIDTH = 80;
+const CELL_MARGIN = 3;
+const COLUMN_WIDTH = CELL_WIDTH + CELL_MARGIN * 2;
+// Hold time before a header becomes draggable. Short enough to feel
+// responsive, long enough that a normal horizontal swipe still scrolls.
+const DRAG_ACTIVATION_MS = 250;
+
+const SPRING = { useNativeDriver: true, tension: 100, friction: 8 } as const;
+
 const ScoreTable: React.FC<ScoreTableProps> = ({
   selectedUsers,
   scoreLines,
   focusedCell,
   scoreLimit: _scoreLimit,
+  keyboardInset = 0,
   onScoreChange,
   onFocusChange,
   onDeleteLine,
@@ -38,12 +54,30 @@ const ScoreTable: React.FC<ScoreTableProps> = ({
   const { theme } = useTheme();
   const inputRefs = useRef<{ [key: string]: TextInput | null }>({});
   const rowsScrollRef = useRef<ScrollView>(null);
+
+  // ---- Drag & drop state -------------------------------------------------
+  // Everything the gesture callbacks read lives in refs, so the gestures can
+  // be created once (per player list) instead of on every render. Recreating
+  // them mid-drag made gesture-handler swap handlers under the finger and
+  // made onEnd read a stale `targetIndex` from an old closure.
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [targetIndex, setTargetIndex] = useState<number | null>(null);
   const draggedIndexRef = useRef<number | null>(null);
-  const dragOffsetAnimated = useRef(new Animated.Value(0)).current;
-  const opacityAnimated = useRef(new Animated.Value(1)).current;
-  const columnShifts = useRef<{ [key: number]: Animated.Value }>({});
+  const targetIndexRef = useRef<number | null>(null);
+  const usersRef = useRef(selectedUsers);
+  usersRef.current = selectedUsers;
+  const onUsersReorderRef = useRef(onUsersReorder);
+  onUsersReorderRef.current = onUsersReorder;
+
+  const dragOffset = useRef(new Animated.Value(0)).current;
+  const dragOpacity = useRef(new Animated.Value(1)).current;
+  const columnShifts = useRef<Animated.Value[]>([]);
+  const getShift = (idx: number) => {
+    if (!columnShifts.current[idx]) {
+      columnShifts.current[idx] = new Animated.Value(0);
+    }
+    return columnShifts.current[idx];
+  };
 
   const handleScoreChange = (lineId: string, userId: string, value: string) => {
     let cleanedValue = value;
@@ -53,19 +87,14 @@ const ScoreTable: React.FC<ScoreTableProps> = ({
     onScoreChange(lineId, userId, cleanedValue);
   };
 
-  // Tapping a cell clears its previous value before entering edit mode, so
-  // typing always starts fresh (matching the old selectTextOnFocus "type to
-  // replace" behavior) without ever letting Android enter its native text-
-  // selection UI — which is what was hijacking the scroll gesture whenever a
-  // filled, centered cell was touched.
   const beginEditing = (lineId: string, userId: string) => {
-    // onScoreChange(lineId, userId, '');
     onFocusChange({ lineId, userId });
   };
 
-  // Android doesn't auto-scroll a focused TextInput above the keyboard the
-  // way iOS does. Without this, score inputs on the lower rows of the table
-  // get hidden behind the keyboard once it opens.
+  // Scrolls the rows list so the focused cell sits near the top of the
+  // visible area. Called on focus AND again once the keyboard has opened
+  // (keyboardInset changes): the first call happens before the table has
+  // shrunk, so on its own it can leave the cell under the keyboard.
   const scrollFocusedInputIntoView = (inputKey: string) => {
     const input = inputRefs.current[inputKey];
     const scrollView = rowsScrollRef.current;
@@ -76,7 +105,7 @@ const ScoreTable: React.FC<ScoreTableProps> = ({
       if (!scrollNode) return;
       input.measureLayout(
         scrollNode,
-        (_x: number, y: number, _width: number) => {
+        (_x: number, y: number) => {
           scrollView.scrollTo({ y: Math.max(0, y - 60), animated: true });
         },
         () => {
@@ -85,6 +114,15 @@ const ScoreTable: React.FC<ScoreTableProps> = ({
       );
     });
   };
+
+  useEffect(() => {
+    if (!focusedCell) return;
+    const key = `${focusedCell.lineId}_${focusedCell.userId}`;
+    // Let the screen re-layout with the new bottom padding first.
+    const t = setTimeout(() => scrollFocusedInputIntoView(key), 80);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [keyboardInset, focusedCell?.lineId, focusedCell?.userId]);
 
   const focusNextInput = (currentLineId: string, currentUserId: string) => {
     const lineEntries = Object.entries(scoreLines);
@@ -108,139 +146,90 @@ const ScoreTable: React.FC<ScoreTableProps> = ({
     onFocusChange(null);
   };
 
-  const createDragGesture = (index: number) => {
-    const longPress = Gesture.LongPress()
-      .minDuration(150)
-      .onStart(() => {
-        draggedIndexRef.current = index;
-        setDraggedIndex(index);
-        dragOffsetAnimated.setValue(0);
-        Animated.spring(opacityAnimated, {
-          toValue: 0.6,
-          useNativeDriver: true,
-          tension: 100,
-          friction: 8,
-        }).start();
-      });
-
-    const pan = Gesture.Pan()
-      .onUpdate(event => {
-        if (draggedIndexRef.current !== index) return;
-
-        const { translationX } = event;
-        dragOffsetAnimated.setValue(translationX);
-
-        const columnWidth = 94;
-        const currentDraggedIndex = draggedIndexRef.current;
-        if (currentDraggedIndex === null) return;
-
-        const targetCol = Math.round(translationX / columnWidth);
-        let newTargetIndex = currentDraggedIndex + targetCol;
-
-        newTargetIndex = Math.max(0, Math.min(selectedUsers.length - 1, newTargetIndex));
-
-        if (newTargetIndex === currentDraggedIndex && targetCol !== 0) {
-          newTargetIndex =
-            targetCol > 0
-              ? Math.min(selectedUsers.length - 1, currentDraggedIndex + 1)
-              : Math.max(0, currentDraggedIndex - 1);
-        }
-
-        setTargetIndex(prev => {
-          if (prev === newTargetIndex) {
-            return prev;
-          }
-
-          const currentDraggedIdx = draggedIndexRef.current;
-          if (currentDraggedIdx !== null) {
-            for (let idx = 0; idx < selectedUsers.length; idx++) {
-              if (idx !== currentDraggedIdx) {
-                if (!columnShifts.current[idx]) {
-                  columnShifts.current[idx] = new Animated.Value(0);
-                }
-
-                let newShift = 0;
-                if (currentDraggedIdx > newTargetIndex) {
-                  if (idx >= newTargetIndex && idx < currentDraggedIdx) {
-                    newShift = 94;
-                  }
-                } else if (currentDraggedIdx < newTargetIndex) {
-                  if (idx > currentDraggedIdx && idx <= newTargetIndex) {
-                    newShift = -94;
-                  }
-                }
-
-                Animated.spring(columnShifts.current[idx], {
-                  toValue: newShift,
-                  useNativeDriver: true,
-                  tension: 100,
-                  friction: 8,
-                }).start();
-              }
-            }
-          }
-
-          return newTargetIndex;
-        });
-      })
-      .onEnd(() => {
-        const currentDraggedIndex = draggedIndexRef.current;
-        const finalTargetIndex = targetIndex;
-        const shouldReorder =
-          currentDraggedIndex === index &&
-          finalTargetIndex !== null &&
-          currentDraggedIndex !== finalTargetIndex;
-
-        if (draggedIndexRef.current === index) {
-          const resetAnimations = Object.keys(columnShifts.current).map(idx =>
-            Animated.spring(columnShifts.current[Number(idx)], {
-              toValue: 0,
-              useNativeDriver: true,
-              tension: 100,
-              friction: 8,
-            }),
-          );
-
-          Animated.parallel([
-            Animated.spring(dragOffsetAnimated, {
-              toValue: 0,
-              useNativeDriver: true,
-              tension: 100,
-              friction: 8,
-            }),
-            Animated.spring(opacityAnimated, {
-              toValue: 1,
-              useNativeDriver: true,
-              tension: 100,
-              friction: 8,
-            }),
-            ...resetAnimations,
-          ]).start(() => {
-            draggedIndexRef.current = null;
-            setDraggedIndex(null);
-            setTargetIndex(null);
-            dragOffsetAnimated.setValue(0);
-            opacityAnimated.setValue(1);
-
-            // Commit the actual reorder only once every per-column shift is
-            // confirmed back at 0. columnShifts is keyed by array position,
-            // not by user id — committing the reorder earlier (while the
-            // spring-back animation was still running) meant the array
-            // order changed under columns that still had a stale, non-zero
-            // shift meant for the *old* order, which is what made columns
-            // visually overlap after a drag.
-            if (shouldReorder && currentDraggedIndex !== null && finalTargetIndex !== null) {
-              const newUsers = [...selectedUsers];
-              const [draggedUser] = newUsers.splice(currentDraggedIndex, 1);
-              newUsers.splice(finalTargetIndex, 0, draggedUser);
-              onUsersReorder(newUsers);
-            }
-          });
-        }
-      });
-
-    return Gesture.Simultaneous(longPress, pan);
+  const applyColumnShifts = (from: number, to: number) => {
+    const count = usersRef.current.length;
+    for (let idx = 0; idx < count; idx++) {
+      if (idx === from) continue;
+      let shift = 0;
+      if (from > to && idx >= to && idx < from) shift = COLUMN_WIDTH;
+      else if (from < to && idx > from && idx <= to) shift = -COLUMN_WIDTH;
+      Animated.spring(getShift(idx), { toValue: shift, ...SPRING }).start();
+    }
   };
+
+  const userIdsKey = selectedUsers.map(u => u.id).join('|');
+
+  const dragGestures = useMemo(
+    () =>
+      selectedUsers.map((_user, index) =>
+        // One Pan that only activates after a long press: no race between a
+        // separate LongPress and Pan, and a quick horizontal swipe on a
+        // header still scrolls the table instead of starting a drag.
+        Gesture.Pan()
+          .runOnJS(true)
+          .activateAfterLongPress(DRAG_ACTIVATION_MS)
+          .onStart(() => {
+            draggedIndexRef.current = index;
+            targetIndexRef.current = index;
+            setDraggedIndex(index);
+            setTargetIndex(index);
+            dragOffset.setValue(0);
+            Animated.spring(dragOpacity, { toValue: 0.7, ...SPRING }).start();
+          })
+          .onUpdate(event => {
+            const from = draggedIndexRef.current;
+            if (from !== index) return;
+            dragOffset.setValue(event.translationX);
+
+            const last = usersRef.current.length - 1;
+            const to = Math.max(
+              0,
+              Math.min(last, from + Math.round(event.translationX / COLUMN_WIDTH)),
+            );
+            if (to !== targetIndexRef.current) {
+              targetIndexRef.current = to;
+              setTargetIndex(to);
+              applyColumnShifts(from, to);
+            }
+          })
+          // onFinalize runs on success AND on cancellation (e.g. the system
+          // stole the touch). Using onEnd only left the header stuck
+          // half-transparent whenever the gesture got cancelled.
+          .onFinalize(() => {
+            const from = draggedIndexRef.current;
+            if (from !== index) return;
+            const to = targetIndexRef.current;
+
+            draggedIndexRef.current = null;
+            targetIndexRef.current = null;
+
+            // Snap the dragged header onto its destination slot, then commit.
+            const snapTo = to !== null ? (to - from) * COLUMN_WIDTH : 0;
+            Animated.parallel([
+              Animated.spring(dragOffset, { toValue: snapTo, ...SPRING }),
+              Animated.spring(dragOpacity, { toValue: 1, ...SPRING }),
+            ]).start(() => {
+              // Reset every shift to 0 *in the same frame* as the reorder,
+              // so no column keeps an offset meant for the old order.
+              dragOffset.setValue(0);
+              columnShifts.current.forEach(v => v?.setValue(0));
+              setDraggedIndex(null);
+              setTargetIndex(null);
+              if (to !== null && to !== from) {
+                const newUsers = [...usersRef.current];
+                const [moved] = newUsers.splice(from, 1);
+                newUsers.splice(to, 0, moved);
+                onUsersReorderRef.current(newUsers);
+              }
+            });
+          }),
+      ),
+    // Gestures only need rebuilding when the player list itself changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [userIdsKey],
+  );
+
+  const isDraggingAny = draggedIndex !== null;
 
   return (
     <View style={styles.scoreTableContainer}>
@@ -255,6 +244,12 @@ const ScoreTable: React.FC<ScoreTableProps> = ({
           horizontal={true}
           showsHorizontalScrollIndicator={true}
           nestedScrollEnabled={true}
+          // Freeze horizontal scrolling while a column is being dragged.
+          scrollEnabled={!isDraggingAny}
+          // Needed on *every* nested ScrollView: with the default ('never')
+          // the outer one swallowed the first tap on another cell while the
+          // keyboard was open (keyboard closed instead of moving focus).
+          keyboardShouldPersistTaps="handled"
         >
           <View style={styles.tableContainer}>
             {/* Header Row */}
@@ -262,65 +257,57 @@ const ScoreTable: React.FC<ScoreTableProps> = ({
               <View style={styles.lineNumberHeader} />
               {selectedUsers.map((user, index) => {
                 const isDragging = draggedIndex === index;
-                const isTarget =
-                  targetIndex === index && draggedIndex !== null && draggedIndex !== index;
-                const dragGesture = createDragGesture(index);
+                const isTarget = isDraggingAny && targetIndex === index && !isDragging;
+                const gesture = dragGestures[index];
+
+                const headerCell = (
+                  <Animated.View
+                    style={[
+                      styles.playerHeaderCell,
+                      { borderBottomColor: user.color },
+                      isDragging
+                        ? {
+                            backgroundColor: theme.colors.surface,
+                            transform: [{ translateX: dragOffset }, { scale: 1.05 }],
+                            opacity: dragOpacity,
+                          }
+                        : { transform: [{ translateX: getShift(index) }] },
+                    ]}
+                  >
+                    <Text
+                      style={[styles.playerHeaderText, { color: theme.colors.text }]}
+                      numberOfLines={1}
+                    >
+                      ⠿ {user.name}
+                    </Text>
+                  </Animated.View>
+                );
 
                 return (
-                  <View key={user.id} style={styles.headerCellWrapper}>
-                    {isDragging && draggedIndex === index && (
-                      <View
-                        style={[
-                          styles.playerHeaderCell,
-                          styles.placeholderCell,
-                          { borderColor: theme.colors.textTertiary },
-                        ]}
-                      />
-                    )}
+                  <View
+                    key={user.id}
+                    // zIndex/elevation on the wrapper (the sibling level), not
+                    // the inner view, so the dragged header draws on top of
+                    // its neighbours on both platforms.
+                    style={[styles.headerCellWrapper, isDragging && styles.headerCellWrapperDragging]}
+                  >
                     {isTarget && (
-                      <Animated.View
+                      <View
+                        pointerEvents="none"
                         style={[
                           styles.dropPlaceholder,
-                          styles.dropPlaceholderAbsolute,
                           {
                             borderColor: theme.colors.primary,
                             backgroundColor: theme.colors.primaryBackground,
-                            opacity: opacityAnimated.interpolate({
-                              inputRange: [0.6, 1],
-                              outputRange: [0.8, 0],
-                            }),
                           },
                         ]}
                       />
                     )}
-                    <GestureDetector gesture={dragGesture}>
-                      <Animated.View
-                        style={[
-                          styles.playerHeaderCell,
-                          { borderBottomColor: user.color },
-                          isDragging && [
-                            styles.playerHeaderCellDragging,
-                            {
-                              transform: [{ translateX: dragOffsetAnimated }],
-                              opacity: opacityAnimated,
-                              zIndex: 1000,
-                              elevation: 10,
-                            },
-                          ],
-                          !isDragging &&
-                            (() => {
-                              if (!columnShifts.current[index]) {
-                                columnShifts.current[index] = new Animated.Value(0);
-                              }
-                              return { transform: [{ translateX: columnShifts.current[index] }] };
-                            })(),
-                        ]}
-                      >
-                        <Text style={[styles.playerHeaderText, { color: theme.colors.text }]} numberOfLines={1}>
-                          ⠿ {user.name}
-                        </Text>
-                      </Animated.View>
-                    </GestureDetector>
+                    {gesture ? (
+                      <GestureDetector gesture={gesture}>{headerCell}</GestureDetector>
+                    ) : (
+                      headerCell
+                    )}
                   </View>
                 );
               })}
@@ -331,6 +318,7 @@ const ScoreTable: React.FC<ScoreTableProps> = ({
             <ScrollView
               ref={rowsScrollRef}
               style={styles.scrollableRows}
+              contentContainerStyle={styles.rowsContent}
               nestedScrollEnabled={true}
               showsVerticalScrollIndicator={true}
               keyboardShouldPersistTaps="handled"
@@ -350,10 +338,7 @@ const ScoreTable: React.FC<ScoreTableProps> = ({
 
                     // Only the single cell actually being edited is a real
                     // TextInput. Every other cell is a plain, non-editable
-                    // Text — which never intercepts a scroll gesture, unlike
-                    // a centered TextInput whose glyphs sit right under the
-                    // finger. This is what keeps the table scroll priority
-                    // over per-cell touches.
+                    // Text — which never intercepts a scroll gesture.
                     if (isFocused) {
                       return (
                         <TextInput
@@ -378,6 +363,9 @@ const ScoreTable: React.FC<ScoreTableProps> = ({
                           onFocus={() => scrollFocusedInputIntoView(inputKey)}
                           onBlur={() => onFocusChange(null)}
                           onSubmitEditing={() => focusNextInput(lineId, user.id)}
+                          // Keep the keyboard up while jumping to the next
+                          // cell instead of closing/reopening it each time.
+                          submitBehavior="submit"
                           keyboardType="numeric"
                           placeholder="—"
                           placeholderTextColor={theme.colors.placeholder}
@@ -446,8 +434,10 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollableRows: {
-    flex: 1, 
-    height: '100%',
+    flex: 1,
+  },
+  rowsContent: {
+    paddingBottom: 12,
   },
   tableHeader: {
     flexDirection: 'row',
@@ -459,27 +449,27 @@ const styles = StyleSheet.create({
   lineNumberHeader: {
     width: 44,
     alignSelf: 'center',
-    textAlign: 'center',
   },
   playerHeaderCell: {
-    width: 80,
+    width: CELL_WIDTH,
     alignItems: 'center',
     justifyContent: 'center',
-    position: 'relative',
     borderBottomWidth: 2,
     borderBottomColor: 'transparent',
+    paddingTop: 6,
     paddingBottom: 6,
-  },
-  playerHeaderCellDragging: {
-    zIndex: 1000,
-    elevation: 10,
+    borderRadius: 6,
   },
   dropPlaceholder: {
-    width: 80,
-    height: 20,
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    left: 0,
+    width: CELL_WIDTH,
     borderWidth: 2,
     borderStyle: 'dashed',
     borderRadius: 6,
+    opacity: 0.8,
   },
   playerHeaderText: {
     fontSize: 10,
@@ -504,13 +494,13 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   scoreInputCell: {
-    width: 80,
+    width: CELL_WIDTH,
     height: 44,
     borderRadius: 10,
     borderWidth: 1,
     fontSize: 16,
     fontFamily: FONTS.titleBold,
-    marginHorizontal: 3,
+    marginHorizontal: CELL_MARGIN,
     paddingVertical: 0,
     textAlign: 'center',
     overflow: 'hidden',
@@ -546,23 +536,14 @@ const styles = StyleSheet.create({
     borderRadius: 1,
   },
   headerCellWrapper: {
-    position: 'relative',
-    width: 80,
-    marginHorizontal: 3,
+    width: CELL_WIDTH,
+    marginHorizontal: CELL_MARGIN,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  dropPlaceholderAbsolute: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    zIndex: 1,
-    pointerEvents: 'none',
-  },
-  placeholderCell: {
-    opacity: 0.3,
-    borderStyle: 'dashed',
-    backgroundColor: 'transparent',
+  headerCellWrapperDragging: {
+    zIndex: 1000,
+    elevation: 10,
   },
 });
 export default ScoreTable;
