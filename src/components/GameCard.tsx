@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Game } from '../types';
 import { useTheme } from '../theme';
+import { FONTS, tabularNums } from '../theme/types';
 
 interface GameCardProps {
   game: Game;
@@ -11,6 +12,7 @@ interface GameCardProps {
 
 const GameCard: React.FC<GameCardProps> = ({ game, onPress, onLongPress }) => {
   const { theme } = useTheme();
+
   const getWinner = (targetGame: Game) => {
     let maxScore = -Infinity;
     let winner = null;
@@ -25,57 +27,57 @@ const GameCard: React.FC<GameCardProps> = ({ game, onPress, onLongPress }) => {
   };
 
   const winner = getWinner(game);
+  // Overlapping avatar stack, most recently added player on top — matches
+  // the reference design's dot-stack treatment on history cards.
+  const dots = game.players.slice(0, 4).reverse();
+  const extra = Math.max(0, game.players.length - 4);
 
   return (
     <TouchableOpacity
-      style={[styles.gameCard, { backgroundColor: theme.colors.background, borderColor: theme.colors.border }]}
+      style={[styles.gameCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.borderLight }]}
       onPress={onPress}
       onLongPress={onLongPress}
     >
-      <View style={styles.gameCardHeader}>
-        <Text style={[styles.gameCardTitle, { color: theme.colors.text }]}>{game.name}</Text>
-        <Text style={[styles.gameCardDate, { color: theme.colors.textSecondary }]}>
-          {new Date(game.createdAt).toLocaleDateString('fr-FR', {
-            day: '2-digit',
-            month: '2-digit',
-            year: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit',
-          })}
+      <View style={styles.headerRow}>
+        <Text style={[styles.title, { color: theme.colors.text }]} numberOfLines={1}>
+          {game.name}
         </Text>
-      </View>
-
-      <View style={styles.gameCardInfo}>
-        <View style={styles.playersInfo}>
-          <Text style={[styles.gameCardLabel, { color: theme.colors.textSecondary }]}>Joueurs:</Text>
-          <View style={styles.playerDots}>
-            {game.players.map(player => (
-              <View
-                key={player.id}
-                style={[styles.playerDot, { backgroundColor: player.color }]}
-              />
-            ))}
-          </View>
-          <Text style={[styles.playerCount, { color: theme.colors.primary }]}>{game.players.length}</Text>
-        </View>
-
         {winner && (
-          <View style={styles.winnerInfo}>
-            <Text style={[styles.winnerLabel, { color: theme.colors.text }]}>🏆 Gagnant:</Text>
-            <View
-              style={[styles.winnerDot, { backgroundColor: winner.color }]}
-            />
-            <Text style={[styles.winnerName, { color: theme.colors.text }]}>{winner.name}</Text>
-            <Text style={[styles.winnerScore, { color: theme.colors.primary }]}>
-              ({game.scores[winner.id]} pts)
-            </Text>
-          </View>
+          <Text style={[styles.score, tabularNums, { color: theme.colors.primary }]}>
+            {game.scores[winner.id] ?? 0} PTS
+          </Text>
         )}
       </View>
 
-      <Text style={[styles.loadHint, { color: theme.colors.textTertiary }]}>
-        Appuyez pour charger • Maintenez pour supprimer
+      <Text style={[styles.metaLine, { color: theme.colors.textSecondary }]}>
+        {new Date(game.createdAt).toLocaleDateString('fr-FR', {
+          day: '2-digit',
+          month: 'short',
+        })}
+        {' · '}
+        {game.players.length} joueur{game.players.length > 1 ? 's' : ''}
       </Text>
+
+      <View style={styles.footerRow}>
+        {dots.map((player, index) => (
+          <View
+            key={player.id}
+            style={[
+              styles.dot,
+              { backgroundColor: player.color, borderColor: theme.colors.surface },
+              index > 0 && styles.dotOverlap,
+            ]}
+          />
+        ))}
+        {extra > 0 && (
+          <Text style={[styles.extraLabel, { color: theme.colors.textSecondary }]}>+{extra}</Text>
+        )}
+        {winner && (
+          <Text style={[styles.winnerLabel, { color: theme.colors.textSecondary }]} numberOfLines={1}>
+            🏆 {winner.name}
+          </Text>
+        )}
+      </View>
     </TouchableOpacity>
   );
 };
@@ -83,79 +85,53 @@ const GameCard: React.FC<GameCardProps> = ({ game, onPress, onLongPress }) => {
 const styles = StyleSheet.create({
   gameCard: {
     borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
+    padding: 14,
     borderWidth: 1,
   },
-  gameCardHeader: {
+  headerRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    gap: 8,
   },
-  gameCardTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
+  title: {
+    fontSize: 13,
+    fontFamily: FONTS.titleBold,
     flex: 1,
   },
-  gameCardDate: {
-    fontSize: 12,
-    marginLeft: 8,
+  score: {
+    fontSize: 13,
+    fontFamily: FONTS.titleBold,
   },
-  gameCardInfo: {
+  metaLine: {
+    fontSize: 11,
+    fontFamily: FONTS.bodyMedium,
+    marginTop: 4,
     marginBottom: 8,
   },
-  playersInfo: {
+  footerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
   },
-  gameCardLabel: {
-    fontSize: 14,
-    marginRight: 8,
+  dot: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    borderWidth: 2,
   },
-  playerDots: {
-    flexDirection: 'row',
-    marginRight: 8,
+  dotOverlap: {
+    marginLeft: -6,
   },
-  playerDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    marginRight: 4,
-  },
-  playerCount: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  winnerInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  extraLabel: {
+    fontSize: 10,
+    fontFamily: FONTS.titleBold,
+    marginLeft: 6,
   },
   winnerLabel: {
-    fontSize: 14,
-    marginRight: 8,
-  },
-  winnerDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    marginRight: 6,
-  },
-  winnerName: {
-    fontSize: 14,
-    fontWeight: '600',
-    marginRight: 4,
-  },
-  winnerScore: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  loadHint: {
     fontSize: 11,
-    textAlign: 'center',
-    marginTop: 4,
-    fontStyle: 'italic',
+    fontFamily: FONTS.bodySemiBold,
+    marginLeft: 8,
+    flexShrink: 1,
   },
 });
 

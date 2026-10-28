@@ -9,6 +9,8 @@ import {
 } from 'react-native';
 import { User } from '../types';
 import { useTheme } from '../theme';
+import { FONTS } from '../theme/types';
+import ScreenHeader from './ScreenHeader';
 
 interface UserSelectionProps {
   users: User[];
@@ -23,7 +25,9 @@ interface UserSelectionProps {
   onScoreLimitChange: (limit: number | null) => void;
   onUserToggle: (user: User) => void;
   onStartGame: () => void;
-  onAddUser: () => void;
+  /** Creates a new player (name only, color auto-assigned from the palette) without leaving this screen. */
+  onQuickAddUser: (name: string) => void;
+  onBack: () => void;
 }
 
 const UserSelection: React.FC<UserSelectionProps> = ({
@@ -38,19 +42,23 @@ const UserSelection: React.FC<UserSelectionProps> = ({
   onScoreLimitChange,
   onUserToggle,
   onStartGame,
-  onAddUser,
+  onQuickAddUser,
+  onBack,
 }) => {
   const { theme } = useTheme();
   const [searchQuery, setSearchQuery] = useState('');
+  const [quickAddName, setQuickAddName] = useState('');
 
-  // Filter users based on search query
+  const submitQuickAdd = () => {
+    const trimmed = quickAddName.trim();
+    if (!trimmed) return;
+    onQuickAddUser(trimmed);
+    setQuickAddName('');
+  };
+
   const filteredUsers = useMemo(() => {
-    if (!searchQuery.trim()) {
-      return users;
-    }
-    return users.filter(user =>
-      user.name.toLowerCase().includes(searchQuery.toLowerCase()),
-    );
+    if (!searchQuery.trim()) return users;
+    return users.filter(user => user.name.toLowerCase().includes(searchQuery.toLowerCase()));
   }, [users, searchQuery]);
 
   const renderUserSelection = (item: User) => {
@@ -59,436 +67,310 @@ const UserSelection: React.FC<UserSelectionProps> = ({
       <TouchableOpacity
         key={item.id}
         style={[
-          styles.userSelectionItem,
+          styles.userRow,
           {
-            backgroundColor: theme.colors.card,
-            borderColor: isSelected
-              ? theme.colors.primary
-              : theme.colors.border,
-          },
-          isSelected && {
-            backgroundColor: theme.colors.primaryBackground,
+            backgroundColor: isSelected ? theme.colors.primaryBackground : theme.colors.surface,
+            borderColor: isSelected ? theme.colors.primary : theme.colors.borderLight,
           },
         ]}
         onPress={() => onUserToggle(item)}
         activeOpacity={0.7}
       >
+        <View style={[styles.avatar, { backgroundColor: item.color }]} />
+        <Text style={[styles.userName, { color: theme.colors.text }]}>{item.name}</Text>
         <View
-          style={[styles.colorIndicator, { backgroundColor: item.color }]}
-        />
-        <Text style={[styles.userSelectionName, { color: theme.colors.text }]}>
-          {item.name}
-        </Text>
-        {isSelected && (
-          <Text style={[styles.checkmark, { color: theme.colors.primary }]}>
-            ✓
-          </Text>
-        )}
+          style={[
+            styles.checkbox,
+            {
+              borderColor: theme.colors.primary,
+              backgroundColor: isSelected ? theme.colors.primary : 'transparent',
+            },
+          ]}
+        >
+          {isSelected && <Text style={[styles.checkmark, { color: theme.colors.onPrimary }]}>✓</Text>}
+        </View>
       </TouchableOpacity>
     );
   };
 
-  const playerCountLabel = `${selectedUsers.length} joueur${
-    selectedUsers.length === 1 ? '' : 's'
-  }`;
   const startButtonLabel = isEditMode
-    ? `Retour aux scores (${playerCountLabel})`
-    : `Commencer la Partie (${playerCountLabel})`;
+    ? 'Enregistrer les modifications'
+    : 'Commencer la partie';
+  const canStart = selectedUsers.length > 0;
 
   return (
-    <ScrollView
-      style={[styles.container, { backgroundColor: theme.colors.background }]}
-      contentContainerStyle={styles.outerScrollContent}
-      keyboardShouldPersistTaps="handled"
-      showsVerticalScrollIndicator
-    >
-      <View style={styles.header}>
-        <Text style={[styles.headerTitle, { color: theme.colors.text }]}>
-          {isEditMode ? 'Modifier la partie' : 'Nouvelle Partie'}
-        </Text>
-        <Text
-          style={[styles.headerSubtitle, { color: theme.colors.textSecondary }]}
-        >
-          {isEditMode
-            ? 'Ajustez le titre, la configuration ou les joueurs, puis revenez aux scores.'
-            : 'Choisissez au moins 2 joueurs pour commencer la partie'}
-        </Text>
-      </View>
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      <ScreenHeader
+        title={isEditMode ? 'Modifier la partie' : 'Nouvelle partie'}
+        onBack={onBack}
+      />
 
-      <View style={styles.gameTitleContainer}>
-        <Text style={[styles.gameTitleLabel, { color: theme.colors.text }]}>
-          Titre de la Partie
-        </Text>
-        <TextInput
-          style={[
-            styles.gameTitleInput,
-            {
-              backgroundColor: theme.colors.card,
-              borderColor: theme.colors.border,
-              color: theme.colors.text,
-            },
-          ]}
-          value={gameTitle}
-          onChangeText={onGameTitleChange}
-          placeholder="Entrez le titre de la partie"
-          placeholderTextColor={theme.colors.placeholder}
-        />
-      </View>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.field}>
+          <Text style={[styles.label, { color: theme.colors.textTertiary }]}>TITRE DE LA PARTIE</Text>
+          <TextInput
+            style={[
+              styles.input,
+              { backgroundColor: theme.colors.surface, borderColor: theme.colors.border, color: theme.colors.text },
+            ]}
+            value={gameTitle}
+            onChangeText={onGameTitleChange}
+            placeholder={`Partie du ${new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}`}
+            placeholderTextColor={theme.colors.placeholder}
+          />
+        </View>
 
-      <View style={styles.gameConfigContainer}>
-        <Text style={[styles.gameConfigLabel, { color: theme.colors.text }]}>
-          Configuration de la Partie
-        </Text>
-
-        <View style={styles.gameGoalContainer}>
-          <Text style={[styles.gameGoalLabel, { color: theme.colors.text }]}>
-            Objectif:
-          </Text>
-          <View style={styles.gameGoalButtons}>
+        <View style={styles.field}>
+          <Text style={[styles.label, { color: theme.colors.textTertiary }]}>OBJECTIF</Text>
+          <View style={styles.goalRow}>
             <TouchableOpacity
               style={[
-                styles.gameGoalButton,
+                styles.goalButton,
                 {
-                  backgroundColor: theme.colors.card,
-                  borderColor: theme.colors.border,
-                },
-                gameGoal === 'highest' && {
-                  backgroundColor: theme.colors.primary,
-                  borderColor: theme.colors.primary,
+                  borderColor: gameGoal === 'highest' ? theme.colors.primary : theme.colors.border,
+                  backgroundColor: gameGoal === 'highest' ? theme.colors.primaryBackground : theme.colors.surface,
                 },
               ]}
               onPress={() => onGameGoalChange('highest')}
             >
-              <Text
-                style={[
-                  styles.gameGoalButtonText,
-                  { color: theme.colors.text },
-                  gameGoal === 'highest' && styles.gameGoalButtonTextSelected,
-                ]}
-              >
-                Score le plus élevé
-              </Text>
+              <Text style={[styles.goalButtonText, { color: theme.colors.text }]}>Score le + haut gagne</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[
-                styles.gameGoalButton,
+                styles.goalButton,
                 {
-                  backgroundColor: theme.colors.card,
-                  borderColor: theme.colors.border,
-                },
-                gameGoal === 'lowest' && {
-                  backgroundColor: theme.colors.primary,
-                  borderColor: theme.colors.primary,
+                  borderColor: gameGoal === 'lowest' ? theme.colors.primary : theme.colors.border,
+                  backgroundColor: gameGoal === 'lowest' ? theme.colors.primaryBackground : theme.colors.surface,
                 },
               ]}
               onPress={() => onGameGoalChange('lowest')}
             >
-              <Text
-                style={[
-                  styles.gameGoalButtonText,
-                  { color: theme.colors.text },
-                  gameGoal === 'lowest' && styles.gameGoalButtonTextSelected,
-                ]}
-              >
-                Score le plus bas
-              </Text>
+              <Text style={[styles.goalButtonText, { color: theme.colors.text }]}>Score le + bas gagne</Text>
             </TouchableOpacity>
           </View>
         </View>
 
-        <View style={styles.scoreLimitContainer}>
-          <Text style={[styles.scoreLimitLabel, { color: theme.colors.text }]}>
-            Limite de score (optionnel):
-          </Text>
+        <View style={styles.field}>
+          <Text style={[styles.label, { color: theme.colors.textTertiary }]}>LIMITE DE SCORE (OPTIONNEL)</Text>
           <TextInput
             style={[
-              styles.scoreLimitInput,
-              {
-                backgroundColor: theme.colors.card,
-                borderColor: theme.colors.border,
-                color: theme.colors.text,
-              },
+              styles.input,
+              { backgroundColor: theme.colors.surface, borderColor: theme.colors.border, color: theme.colors.text },
             ]}
             value={scoreLimit?.toString() || ''}
             onChangeText={value => {
               const numValue = Number.parseInt(value, 10);
               onScoreLimitChange(Number.isNaN(numValue) ? null : numValue);
             }}
-            placeholder="Ex: 100"
+            placeholder="Aucune limite"
             placeholderTextColor={theme.colors.placeholder}
             keyboardType="numeric"
           />
         </View>
-      </View>
 
-      <View style={styles.userSelectionHeader}>
-        <Text style={[styles.userSelectionTitle, { color: theme.colors.text }]}>
-          Sélectionner les Joueurs
-        </Text>
-        <View style={styles.headerActions}>
-          <View style={styles.searchContainer}>
-            <TextInput
-              style={[
-                styles.searchInput,
-                {
-                  backgroundColor: theme.colors.card,
-                  borderColor: theme.colors.border,
-                  color: theme.colors.text,
-                },
-              ]}
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-              placeholder="Rechercher..."
-              placeholderTextColor={theme.colors.placeholder}
-            />
-          </View>
-          <TouchableOpacity
+        <View style={styles.field}>
+          <Text style={[styles.label, { color: theme.colors.textTertiary }]}>
+            JOUEURS ({selectedUsers.length})
+          </Text>
+          <TextInput
             style={[
-              styles.addUserButton,
-              { backgroundColor: theme.colors.primary },
+              styles.input,
+              styles.searchInput,
+              { backgroundColor: theme.colors.surface, borderColor: theme.colors.border, color: theme.colors.text },
             ]}
-            onPress={onAddUser}
-          >
-            <Text
-              style={[styles.addUserButtonText, { color: theme.colors.text }]}
-            >
-              + Nouveau Joueur
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </View>
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            placeholder="Rechercher un joueur"
+            placeholderTextColor={theme.colors.placeholder}
+          />
 
-      <ScrollView
-        style={styles.userListScroll}
-        contentContainerStyle={styles.userListScrollContent}
-        keyboardShouldPersistTaps="handled"
-        nestedScrollEnabled
-        showsVerticalScrollIndicator
-      >
-        {filteredUsers.length === 0 ? (
-          <View style={styles.emptyState}>
-            <Text
-              style={[
-                styles.emptyStateText,
-                { color: theme.colors.textTertiary },
-              ]}
-            >
+          {filteredUsers.length === 0 ? (
+            <Text style={[styles.emptyText, { color: theme.colors.textTertiary }]}>
               {searchQuery ? 'Aucun joueur trouvé' : 'Aucun joueur disponible'}
             </Text>
+          ) : (
+            <View style={styles.userList}>{filteredUsers.map(renderUserSelection)}</View>
+          )}
+
+          <View style={styles.quickAddRow}>
+            <TextInput
+              style={[
+                styles.input,
+                styles.quickAddInput,
+                { backgroundColor: theme.colors.surface, borderColor: theme.colors.border, color: theme.colors.text },
+              ]}
+              value={quickAddName}
+              onChangeText={setQuickAddName}
+              placeholder="Nouveau joueur…"
+              placeholderTextColor={theme.colors.placeholder}
+              onSubmitEditing={submitQuickAdd}
+              returnKeyType="done"
+            />
+            <TouchableOpacity
+              style={[styles.quickAddButton, { borderColor: theme.colors.border, backgroundColor: theme.colors.surface }]}
+              onPress={submitQuickAdd}
+              accessibilityLabel="Ajouter un joueur"
+            >
+              <Text style={[styles.quickAddButtonText, { color: theme.colors.primary }]}>+</Text>
+            </TouchableOpacity>
           </View>
-        ) : (
-          <View style={styles.userListWrapper}>
-            {filteredUsers.map(renderUserSelection)}
-          </View>
-        )}
+        </View>
       </ScrollView>
 
-      <View style={styles.startGameContainer}>
+      <View style={[styles.footer, { borderTopColor: theme.colors.borderLight }]}>
         <TouchableOpacity
           style={[
-            styles.startGameButton,
-            {
-              backgroundColor:
-                selectedUsers.length < 2 || gameTitle === ''
-                  ? theme.colors.disabled
-                  : theme.colors.primary,
-            },
+            styles.startButton,
+            { backgroundColor: canStart ? theme.colors.primary : theme.colors.surface2 },
           ]}
           onPress={onStartGame}
-          disabled={selectedUsers.length < 2 || gameTitle === ''}
+          disabled={!canStart}
         >
           <Text
-            style={[styles.startGameButtonText, { color: theme.colors.text }]}
+            style={[
+              styles.startButtonText,
+              { color: canStart ? theme.colors.onPrimary : theme.colors.textTertiary },
+            ]}
           >
             {startButtonLabel}
           </Text>
         </TouchableOpacity>
       </View>
-    </ScrollView>
+    </View>
   );
 };
-
-const USER_LIST_MAX_HEIGHT = 400;
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  outerScrollContent: {
-    flexGrow: 1,
+  scrollContent: {
+    padding: 20,
     paddingBottom: 24,
+    gap: 16,
   },
-  header: {
-    padding: 10,
-    alignItems: 'center',
+  field: {
+    gap: 6,
   },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginBottom: 6,
+  label: {
+    fontSize: 11,
+    fontFamily: FONTS.titleBold,
+    letterSpacing: 0.6,
   },
-  headerSubtitle: {
+  input: {
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 13,
     fontSize: 14,
-    paddingHorizontal: 30,
-    textAlign: 'center',
-  },
-  gameTitleContainer: {
-    paddingHorizontal: 20,
-  },
-  gameTitleLabel: {
-    fontSize: 16,
-    marginBottom: 8,
-    fontWeight: '500',
-  },
-  gameTitleInput: {
-    borderRadius: 8,
-    padding: 10,
-    fontSize: 14,
+    fontFamily: FONTS.titleBold,
     borderWidth: 1,
-  },
-  gameConfigContainer: {
-    paddingHorizontal: 20,
-    marginTop: 16,
-  },
-  gameConfigLabel: {
-    fontSize: 16,
-    marginBottom: 12,
-    fontWeight: '500',
-  },
-  gameGoalContainer: {
-    marginBottom: 12,
-  },
-  gameGoalLabel: {
-    fontSize: 14,
-    marginBottom: 8,
-    fontWeight: '500',
-  },
-  gameGoalButtons: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  gameGoalButton: {
-    flex: 1,
-    borderRadius: 6,
-    padding: 10,
-    borderWidth: 1,
-    alignItems: 'center',
-  },
-  gameGoalButtonText: {
-    fontSize: 12,
-    fontWeight: '500',
-    textAlign: 'center',
-  },
-  gameGoalButtonTextSelected: {
-    fontWeight: '600',
-  },
-  scoreLimitContainer: {
-    marginBottom: 12,
-  },
-  scoreLimitLabel: {
-    fontSize: 14,
-    marginBottom: 8,
-    fontWeight: '500',
-  },
-  scoreLimitInput: {
-    borderRadius: 6,
-    padding: 10,
-    fontSize: 14,
-    borderWidth: 1,
-  },
-  userSelectionHeader: {
-    paddingHorizontal: 20,
-    paddingBottom: 10,
-    marginTop: 14,
-  },
-  userSelectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 10,
-  },
-  headerActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  searchContainer: {
-    flex: 1,
   },
   searchInput: {
-    borderRadius: 6,
-    padding: 8,
-    fontSize: 14,
-    borderWidth: 1,
-    height: 36,
+    fontFamily: FONTS.bodyMedium,
+    marginBottom: 10,
   },
-  addUserButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 6,
-    height: 36,
-    justifyContent: 'center',
-  },
-  addUserButtonText: {
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  userListScroll: {
-    maxHeight: USER_LIST_MAX_HEIGHT,
-    marginTop: 6,
-    marginHorizontal: 20,
-  },
-  userListScrollContent: {
-    flexGrow: 1,
-    paddingBottom: 8,
-  },
-  userListWrapper: {
+  goalRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
     gap: 8,
   },
-  emptyState: {
-    padding: 40,
-    alignItems: 'center',
-  },
-  emptyStateText: {
-    fontSize: 16,
-    textAlign: 'center',
-  },
-  userSelectionItem: {
-    borderRadius: 8,
-    padding: 10,
-    flexDirection: 'row',
+  goalButton: {
+    flex: 1,
+    borderRadius: 10,
+    paddingVertical: 13,
+    paddingHorizontal: 6,
+    borderWidth: 1.5,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    alignSelf: 'flex-start',
+    minHeight: 44,
   },
-  userSelectionName: {
-    fontSize: 14,
-    fontWeight: '500',
-    marginLeft: 8,
-    marginRight: 4,
+  goalButtonText: {
+    fontSize: 12,
+    fontFamily: FONTS.titleBold,
+    textAlign: 'center',
   },
-  colorIndicator: {
-    width: 12,
-    height: 12,
+  userList: {
+    gap: 8,
+  },
+  userRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 11,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    minHeight: 44,
+  },
+  avatar: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+  },
+  userName: {
+    flex: 1,
+    fontSize: 13,
+    fontFamily: FONTS.titleBold,
+  },
+  checkbox: {
+    width: 22,
+    height: 22,
     borderRadius: 6,
+    borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   checkmark: {
-    fontSize: 14,
-    fontWeight: 'bold',
+    fontSize: 13,
+    fontFamily: FONTS.titleBold,
   },
-  startGameContainer: {
-    padding: 20,
+  emptyText: {
+    fontSize: 13,
+    fontFamily: FONTS.bodyRegular,
+    textAlign: 'center',
+    paddingVertical: 20,
   },
-  startGameButton: {
-    borderRadius: 12,
-    padding: 16,
+  quickAddRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 10,
+  },
+  quickAddInput: {
+    flex: 1,
+    fontFamily: FONTS.bodyMedium,
+    fontSize: 13,
+    borderStyle: 'dashed',
+  },
+  quickAddButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderStyle: 'dashed',
     alignItems: 'center',
+    justifyContent: 'center',
   },
-  startGameButtonText: {
-    fontSize: 18,
-    fontWeight: '600',
+  quickAddButtonText: {
+    fontSize: 20,
+    fontFamily: FONTS.titleBold,
+  },
+  footer: {
+    padding: 20,
+    borderTopWidth: 1,
+  },
+  startButton: {
+    borderRadius: 12,
+    paddingVertical: 16,
+    alignItems: 'center',
+    minHeight: 44,
+    justifyContent: 'center',
+  },
+  startButtonText: {
+    fontSize: 15,
+    fontFamily: FONTS.titleExtraBold,
   },
 });
 

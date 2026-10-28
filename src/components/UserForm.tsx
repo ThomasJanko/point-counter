@@ -1,17 +1,21 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TextInput,
   TouchableOpacity,
+  Pressable,
   Alert,
-  ScrollView,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { storageService } from '../services/storageService';
 import { User } from '../types';
 import { useTheme } from '../theme';
+import { FONTS, PLAYER_COLOR_PALETTE } from '../theme/types';
 import ColorPicker from './ColorPicker';
 
 interface UserFormProps {
@@ -22,27 +26,39 @@ interface UserFormProps {
 const UserForm: React.FC<UserFormProps> = ({ user, mode }) => {
   const navigation = useNavigation();
   const { theme } = useTheme();
+  const insets = useSafeAreaInsets();
   const [name, setName] = useState(user?.name || '');
-  const [selectedColor, setSelectedColor] = useState(user?.color || theme.colors.primary);
+  const [selectedColor, setSelectedColor] = useState(
+    user?.color || PLAYER_COLOR_PALETTE[0],
+  );
+
+  // For a new player, default to the next color in the fixed, cycled
+  // palette rather than a repeat of the last-used color.
+  useEffect(() => {
+    if (mode === 'add') {
+      storageService.getUsers().then(existingUsers => {
+        setSelectedColor(
+          PLAYER_COLOR_PALETTE[existingUsers.length % PLAYER_COLOR_PALETTE.length],
+        );
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const validateName = (): boolean => {
     if (!name.trim()) {
-      Alert.alert('Erreur', "Veuillez entrer un nom pour l'utilisateur.");
+      Alert.alert('Erreur', "Veuillez entrer un nom pour le joueur.");
       return false;
     }
-
     if (name.trim().length < 2) {
       Alert.alert('Erreur', 'Le nom doit contenir au moins 2 caractères.');
       return false;
     }
-
     return true;
   };
 
   const handleSave = async () => {
-    if (!validateName()) {
-      return;
-    }
+    if (!validateName()) return;
 
     try {
       if (mode === 'add') {
@@ -52,223 +68,185 @@ const UserForm: React.FC<UserFormProps> = ({ user, mode }) => {
           color: selectedColor,
           createdAt: new Date(),
         };
-
         await storageService.addUser(newUser);
-        Alert.alert('Succès', 'Utilisateur ajouté avec succès !', [
-          { text: 'OK', onPress: () => navigation.goBack() },
-        ]);
+        navigation.goBack();
       } else if (user) {
         const updatedUser: User = {
           ...user,
           name: name.trim(),
           color: selectedColor,
         };
-
         await storageService.updateUser(updatedUser);
-        Alert.alert('Succès', 'Utilisateur modifié avec succès !', [
-          { text: 'OK', onPress: () => navigation.goBack() },
-        ]);
+        navigation.goBack();
       }
     } catch (error) {
       console.error(`Error ${mode === 'add' ? 'adding' : 'updating'} user:`, error);
       Alert.alert(
         'Erreur',
-        `Échec de ${mode === 'add' ? "l'ajout" : 'la modification'} de l'utilisateur. Veuillez réessayer.`,
+        `Échec de ${mode === 'add' ? "l'ajout" : 'la modification'} du joueur. Veuillez réessayer.`,
       );
     }
   };
 
-  const handleDelete = () => {
-    if (!user) return;
-
-    Alert.alert(
-      "Supprimer l'Utilisateur",
-      `Êtes-vous sûr de vouloir supprimer ${user.name} ? Cette action ne peut pas être annulée.`,
-      [
-        { text: 'Annuler', style: 'cancel' },
-        {
-          text: 'Supprimer',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await storageService.deleteUser(user.id);
-              Alert.alert('Succès', 'Utilisateur supprimé avec succès !', [
-                { text: 'OK', onPress: () => navigation.goBack() },
-              ]);
-            } catch (error) {
-              console.error('Error deleting user:', error);
-              Alert.alert(
-                'Erreur',
-                "Échec de la suppression de l'utilisateur. Veuillez réessayer.",
-              );
-            }
-          },
-        },
-      ],
-    );
-  };
-
   return (
-    <ScrollView style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      <View style={styles.content}>
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Informations Utilisateur</Text>
+    <View style={[styles.overlay, { backgroundColor: theme.colors.overlay }]}>
+      <Pressable
+        style={StyleSheet.absoluteFill}
+        onPress={() => navigation.goBack()}
+        accessibilityLabel="Fermer"
+      />
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+        {/* Bottom drawer: flush against the screen edges (no side/bottom
+            margin), only the top corners rounded, always-visible action
+            row pinned outside the scrollable content so it's never cut
+            off regardless of scroll position or content height. */}
+        <View
+          style={[
+            styles.sheet,
+            {
+              backgroundColor: theme.colors.surface,
+              borderColor: theme.colors.border,
+            },
+          ]}
+        >
+          <View style={[styles.handle, { backgroundColor: theme.colors.borderDark }]} />
 
-          <View style={styles.inputContainer}>
-            <Text style={[styles.label, { color: theme.colors.text }]}>Nom</Text>
-            <TextInput
-              style={[styles.input, { backgroundColor: theme.colors.card, borderColor: theme.colors.border, color: theme.colors.text }]}
-              value={name}
-              onChangeText={setName}
-              placeholder="Entrez le nom d'utilisateur"
-              placeholderTextColor={theme.colors.placeholder}
-              maxLength={20}
-            />
-          </View>
-        </View>
+          <View style={styles.sheetContent}>
+            <Text style={[styles.sheetTitle, { color: theme.colors.text }]}>
+              {mode === 'add' ? 'Nouveau joueur' : 'Modifier le joueur'}
+            </Text>
 
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Choisir une Couleur</Text>
-          <Text style={[styles.sectionSubtitle, { color: theme.colors.textSecondary }]}>
-            Glissez sur la palette pour sélectionner une couleur, puis ajustez
-            la teinte avec la barre en dessous
-          </Text>
-
-          <ColorPicker color={selectedColor} onColorChange={setSelectedColor} />
-        </View>
-
-        <View style={styles.previewSection}>
-          {/* <Text style={styles.sectionTitle}>Aperçu</Text> */}
-          <View style={[styles.previewCard, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
-            <View style={styles.previewUserInfo}>
-              <View
+            <View style={styles.previewRow}>
+              <View style={[styles.previewCircle, { backgroundColor: selectedColor }]} />
+              <TextInput
                 style={[
-                  styles.previewColorIndicator,
-                  { backgroundColor: selectedColor },
+                  styles.nameInput,
+                  {
+                    backgroundColor: theme.colors.inputBackground,
+                    borderColor: theme.colors.border,
+                    color: theme.colors.text,
+                  },
                 ]}
+                value={name}
+                onChangeText={setName}
+                placeholder="Nom du joueur"
+                placeholderTextColor={theme.colors.placeholder}
+                maxLength={20}
               />
-              <Text style={[styles.previewName, { color: theme.colors.text }]}>
-                {name || "Nom d'utilisateur"}
-              </Text>
             </View>
+
+            <ColorPicker color={selectedColor} onColorChange={setSelectedColor} />
+          </View>
+
+          <View
+            style={[
+              styles.buttonRow,
+              {
+                borderTopColor: theme.colors.borderLight,
+                paddingBottom: Math.max(16, insets.bottom + 8),
+              },
+            ]}
+          >
+            <TouchableOpacity
+              style={[styles.button, styles.outlinedButton, { borderColor: theme.colors.border }]}
+              onPress={() => navigation.goBack()}
+            >
+              <Text style={[styles.outlinedButtonText, { color: theme.colors.text }]}>
+                Annuler
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.button, { backgroundColor: theme.colors.primary }]}
+              onPress={handleSave}
+            >
+              <Text style={[styles.filledButtonText, { color: theme.colors.onPrimary }]}>
+                Enregistrer
+              </Text>
+            </TouchableOpacity>
           </View>
         </View>
-
-        <View style={styles.buttonContainer}>
-          <TouchableOpacity
-            style={[styles.button, { borderWidth: 2, borderColor: theme.colors.textTertiary }]}
-            onPress={() => navigation.goBack()}
-          >
-            <Text style={[styles.cancelButtonText, { color: theme.colors.textTertiary }]}>Annuler</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.button, { backgroundColor: theme.colors.primary }]}
-            onPress={handleSave}
-          >
-            <Text style={[styles.saveButtonText, { color: theme.colors.text }]}>Enregistrer</Text>
-          </TouchableOpacity>
-        </View>
-
-        {mode === 'edit' && (
-          <TouchableOpacity style={[styles.deleteButton, { borderColor: theme.colors.error }]} onPress={handleDelete}>
-            <Text style={[styles.deleteButtonText, { color: theme.colors.error }]}>Supprimer l'Utilisateur</Text>
-          </TouchableOpacity>
-        )}
-      </View>
-    </ScrollView>
+      </KeyboardAvoidingView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
+  overlay: {
     flex: 1,
+    justifyContent: 'flex-end',
   },
-  content: {
-    padding: 20,
+  sheet: {
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    borderWidth: 1,
+    borderBottomWidth: 0,
   },
-  section: {
-    marginBottom: 10,
+  handle: {
+    alignSelf: 'center',
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    marginTop: 10,
+    marginBottom: 2,
   },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginBottom: 8,
+  sheetContent: {
+    paddingHorizontal: 20,
+    paddingTop: 14,
+    paddingBottom: 8,
   },
-  sectionSubtitle: {
-    fontSize: 14,
+  sheetTitle: {
+    fontSize: 15,
+    fontFamily: FONTS.titleExtraBold,
     marginBottom: 16,
   },
-  inputContainer: {
-    marginBottom: 16,
-  },
-  label: {
-    fontSize: 16,
-    marginBottom: 8,
-    fontWeight: '500',
-  },
-  input: {
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-    borderWidth: 1,
-  },
-  previewSection: {
-    marginBottom: 32,
-  },
-  previewCard: {
-    borderRadius: 12,
-    padding: 16,
-    borderWidth: 1,
-  },
-  previewUserInfo: {
+  previewRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    marginBottom: 18,
+    gap: 12,
   },
-  previewColorIndicator: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    marginRight: 12,
+  previewCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
   },
-  previewName: {
-    fontSize: 16,
-    fontWeight: '500',
+  nameInput: {
+    flex: 1,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 14,
+    fontFamily: FONTS.titleBold,
+    borderWidth: 1,
   },
-  buttonContainer: {
+  buttonRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 20,
+    gap: 10,
+    paddingHorizontal: 20,
+    paddingTop: 14,
+    borderTopWidth: 1,
   },
   button: {
     flex: 1,
-    paddingVertical: 16,
-    borderRadius: 8,
+    paddingVertical: 14,
+    borderRadius: 10,
     alignItems: 'center',
-    marginHorizontal: 8,
     backgroundColor: 'transparent',
   },
-  cancelButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
+  outlinedButton: {
+    borderWidth: 1,
   },
-  saveButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
+  outlinedButtonText: {
+    fontSize: 13,
+    fontFamily: FONTS.titleBold,
   },
-  deleteButton: {
-    backgroundColor: 'transparent',
-    borderWidth: 2,
-    paddingVertical: 16,
-    borderRadius: 8,
-    alignItems: 'center',
-    marginTop: 16,
-  },
-  deleteButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
+  filledButtonText: {
+    fontSize: 13,
+    fontFamily: FONTS.titleBold,
   },
 });
 
 export default UserForm;
-

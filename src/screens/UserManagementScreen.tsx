@@ -16,6 +16,8 @@ import {
 import { storageService } from '../services/storageService';
 import { User } from '../types';
 import { useTheme } from '../theme';
+import { FONTS } from '../theme/types';
+import ScreenHeader from '../components/ScreenHeader';
 
 const UserManagementScreen = () => {
   const navigation = useNavigation<NavigationProp<any>>();
@@ -64,59 +66,49 @@ const UserManagementScreen = () => {
   };
 
   const renderUser = ({ item }: { item: User }) => (
-    <View style={[styles.userCard, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
-      <View style={styles.userInfo}>
-        <View
-          style={[styles.colorIndicator, { backgroundColor: item.color }]}
-        />
-        <Text style={[styles.userName, { color: theme.colors.text }]}>{item.name}</Text>
-      </View>
-      <View style={styles.userActions}>
-        <TouchableOpacity
-          style={[styles.actionButton, { backgroundColor: theme.colors.info }]}
-          onPress={() => navigation.navigate('EditUser', { user: item })}
-        >
-          <Text style={[styles.editButtonText, { color: theme.colors.text }]}>Modifier</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.actionButton, { backgroundColor: theme.colors.error }]}
-          onPress={() => handleDeleteUser(item)}
-        >
-          <Text style={[styles.deleteButtonText, { color: theme.colors.text }]}>Supprimer</Text>
-        </TouchableOpacity>
-      </View>
+    <View style={[styles.userCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.borderLight }]}>
+      <View style={[styles.avatar, { backgroundColor: item.color }]} />
+      <Text style={[styles.userName, { color: theme.colors.text }]}>{item.name}</Text>
+      <TouchableOpacity
+        style={styles.iconButton}
+        onPress={() => navigation.navigate('EditUser', { user: item })}
+        accessibilityLabel={`Modifier ${item.name}`}
+      >
+        <Text style={[styles.iconGlyph, { color: theme.colors.text }]}>✎</Text>
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={styles.iconButton}
+        onPress={() => handleDeleteUser(item)}
+        accessibilityLabel={`Supprimer ${item.name}`}
+      >
+        <Text style={[styles.iconGlyph, { color: theme.colors.error }]}>✕</Text>
+      </TouchableOpacity>
     </View>
   );
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      <View style={styles.header}>
-        <Text style={[styles.headerText, { color: theme.colors.textSecondary }]}>
-          {users.length} Utilisateur{users.length !== 1 ? 's' : ''} Enregistré
-          {users.length !== 1 ? 's' : ''}
-        </Text>
-        <TouchableOpacity
-          style={[styles.addButton, { backgroundColor: theme.colors.primary }]}
-          onPress={() => navigation.navigate('AddUser')}
-        >
-          <Text style={[styles.addButtonText, { color: theme.colors.text }]}>+ Ajouter</Text>
-        </TouchableOpacity>
-      </View>
+      <ScreenHeader
+        title="Joueurs"
+        onBack={() => navigation.goBack()}
+        rightIcon="+"
+        onRightPress={() => navigation.navigate('AddUser')}
+        rightAccessibilityLabel="Ajouter un joueur"
+        rightFilled
+      />
 
       {users.length === 0 ? (
         <View style={styles.emptyContainer}>
-          <Text style={styles.emptyIcon}>👥</Text>
-          <Text style={[styles.emptyTitle, { color: theme.colors.text }]}>Aucun Utilisateur</Text>
+          <Text style={[styles.emptyTitle, { color: theme.colors.text }]}>Aucun joueur</Text>
           <Text style={[styles.emptySubtitle, { color: theme.colors.textSecondary }]}>
-            Ajoutez votre premier utilisateur pour commencer à compter les
-            points
+            Ajoutez votre premier joueur pour commencer à compter les points
           </Text>
           <TouchableOpacity
             style={[styles.emptyButton, { backgroundColor: theme.colors.primary }]}
             onPress={() => navigation.navigate('AddUser')}
           >
-            <Text style={[styles.emptyButtonText, { color: theme.colors.text }]}>
-              Ajouter le Premier Utilisateur
+            <Text style={[styles.emptyButtonText, { color: theme.colors.onPrimary }]}>
+              Ajouter un joueur
             </Text>
           </TouchableOpacity>
         </View>
@@ -139,74 +131,38 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 20,
-    paddingBottom: 10,
-  },
-  headerText: {
-    fontSize: 18,
-    fontWeight: '500',
-  },
-  addButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 8,
-    minHeight: 44,
-    justifyContent: 'center',
-  },
-  addButtonText: {
-    fontWeight: '600',
-  },
   listContainer: {
     padding: 20,
-    paddingTop: 10,
+    gap: 8,
   },
   userCard: {
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
+    borderRadius: 10,
+    padding: 11,
+    marginBottom: 8,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    gap: 12,
     borderWidth: 1,
   },
-  userInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  colorIndicator: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    marginRight: 12,
+  avatar: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
   },
   userName: {
-    fontSize: 16,
-    fontWeight: '500',
+    flex: 1,
+    fontSize: 14,
+    fontFamily: FONTS.titleBold,
   },
-  userActions: {
-    flexDirection: 'row',
-  },
-  actionButton: {
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 6,
-    marginLeft: 8,
-    minHeight: 44,
-    justifyContent: 'center',
+  iconButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 8,
     alignItems: 'center',
+    justifyContent: 'center',
   },
-  editButtonText: {
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  deleteButtonText: {
-    fontSize: 12,
-    fontWeight: '600',
+  iconGlyph: {
+    fontSize: 15,
   },
   emptyContainer: {
     flex: 1,
@@ -214,29 +170,28 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 40,
   },
-  emptyIcon: {
-    fontSize: 64,
-    marginBottom: 16,
-  },
   emptyTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
+    fontSize: 20,
+    fontFamily: FONTS.titleBold,
     marginBottom: 8,
   },
   emptySubtitle: {
-    fontSize: 16,
+    fontSize: 14,
+    fontFamily: FONTS.bodyRegular,
     textAlign: 'center',
     marginBottom: 24,
-    lineHeight: 24,
+    lineHeight: 20,
   },
   emptyButton: {
     paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
+    paddingVertical: 14,
+    borderRadius: 12,
+    minHeight: 44,
+    justifyContent: 'center',
   },
   emptyButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 14,
+    fontFamily: FONTS.titleBold,
   },
 });
 
