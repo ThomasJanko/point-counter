@@ -76,6 +76,8 @@ def jscFlavor = 'io.github.react-native-community:jsc-android:2026004.+'
 // (see android/keystore.properties.example for the template). Falls back to
 // the debug keystore below if that file hasn't been created yet, so local
 // debug builds keep working without it.
+def gitCommitCount = "git rev-list --count HEAD".execute().text.trim().toInteger()
+
 def keystorePropertiesFile = rootProject.file('keystore.properties')
 def keystoreProperties = new Properties()
 if (keystorePropertiesFile.exists()) {
@@ -92,8 +94,8 @@ android {
         applicationId "com.pointcounter"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode VERSION_CODE.toInteger()
-        versionName VERSION_NAME
+        versionCode gitCommitCount
+        versionName "2.0.${gitCommitCount}"
     }
     signingConfigs {
         debug {
